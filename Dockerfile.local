@@ -1,0 +1,27 @@
+# Runtime image — binary is pre-built on host via 'make service_build_linux'
+# Includes Delve debugger; set DEBUG=1 in .env to activate.
+# Build context: project root (docker build -f Dockerfile.local -t orderservice:latest ..)
+
+# ── stage 1: build Delve debugger ────────────────────────────────────────────
+FROM golang:1.25-bookworm AS dlv-builder
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+
+# ── stage 2: runtime ─────────────────────────────────────────────────────────
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+
+COPY --from=dlv-builder /go/bin/dlv /usr/local/bin/dlv
+
+WORKDIR /app
+
+COPY bin/orderservice ./service
+COPY orderservice/config/ ./config/
+COPY orderservice/docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
+
+EXPOSE 9091
+EXPOSE 9201
+EXPOSE 2345
+
+ENTRYPOINT ["./docker-entrypoint.sh", "-config", "./config/config.yaml", "-values", "./config/overrides.yaml"]

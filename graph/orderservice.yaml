@@ -1,0 +1,199 @@
+dataConnectors:
+    inventoryServiceApi:
+        address: dns:///localhost:9202
+        endpoints:
+            processOrderItem:
+                functionDescription: |
+                    Outgoing unary gRPC call to the Inventory Service.
+                    [ConsumeMessage] map OrderItem → ProcessOrderItemRequest (OrderID, ItemID, SKU, Quantity); call sender.Send(req).
+                    [HandleResponse] map ProcessOrderItemResponse → OrderItemResult:
+                    copy OrderID, ItemID, AvailableQty, Reserved, Status, UnitPrice from response; push downstream via sc.Collect.
+                    [EndRequest] log the outcome.
+                functionInitializerGroup: ""
+                functionName: ProcessOrderItem
+                functionPackage: ""
+                grpcMethodType: NoStreaming
+                methodName: ProcessOrderItem
+                name: Process Order Item
+                publicFunction: false
+        implementation: google/grpc
+        module: inventory_service_api
+        name: Inventory Service API
+        type: gRPC
+    orderServiceApi:
+        endpoints:
+            processOrder:
+                functionDescription: |
+                    HTTP source handler for POST /v1/processorder.
+                    [Handler] holds timeout time.Duration read from config property 'timeout' (milliseconds, default 5000).
+                    [HandlerState] carries a context cancel function.
+                    [BeginRequest] attaches context timeout via WithTimeout, stores cancel in handler state.
+                    [ConsumeMessage] decodes JSON body; validates Items non-empty and all quantities positive (write 400 and return error on failure);
+                    generates order ID as UUID; maps each item to OrderItem (ItemId, SKU, Quantity);
+                    reads optional CustomerId; builds Order with CreatedAt=now;
+                    registers result callback keyed on order ID; emits Order via sc.Collect.
+                    [Result callback] called once per result (N inventory results + possibly one TIMED_OUT);
+                    captures in its closure: sync.Mutex mu, accumulator []OrderItemResult, responseSent bool;
+                    locks mu on each invocation;
+                    if responseSent return true;
+                    if Status==TIMED_OUT compute TotalAmount as sum of item.UnitPrice*item.RequestedQty for each accumulated item, write partial response with accumulated items, call Done(), return true;
+                    otherwise append result.ConfirmedItems to accumulator and return false if len(accumulated) < N;
+                    when all N collected compute status (CONFIRMED if all items in accumulator have Reserved==true, else PARTIALLY_CONFIRMED),
+                    compute TotalAmount as sum of item.UnitPrice * item.RequestedQty for each item in accumulator,
+                    write JSON response, call Done(), return true.
+                    [GetMessageID] returns OrderState.OrderID.
+                    [EndRequest] cancels context.
+                    [Private helper] converts OrderState to ProcessOrderResponse mapping all fields including optional ConfirmedItems slice.
+                functionInitializerGroup: ""
+                functionName: ProcessOrder
+                functionPackage: ""
+                httpMethodType: POST
+                name: Process Order
+                path: /v1/processorder
+                publicFunction: false
+        implementation: net/http
+        module: order_service_api
+        name: Order Service API
+        type: HTTP
+        useDedicatedListener: false
+services:
+    orderService:
+        color: '#D2E5FF'
+        defaultCallSemantics: FunctionCall
+        environment: ""
+        golangVersion: 1.25.4
+        grpcHost: 0.0.0.0
+        grpcPort: 9201
+        httpHost: 0.0.0.0
+        httpPort: 9091
+        metricsHandler: metrics
+        modulePath: github.com/gorundebug/orderservice
+        name: Order Service
+        pipelines:
+            order:
+                mapOrderItemResultToOrderState:
+                    functionDescription: |
+                        Convert a single OrderItemResult into an OrderState.
+                        Set OrderID from result.OrderID; set Status=CONFIRMED if result.Reserved==true, otherwise PARTIALLY_CONFIRMED.
+                        Set ConfirmedItems to a single-element slice containing result.
+                    functionInitializerGroup: ""
+                    functionModule: ""
+                    functionName: MapOrderItemResultToOrderState
+                    functionPackage: ""
+                    name: Map Order Item Result To Order State
+                    source: processOrderItem
+                    type: Map
+                    valueType: orderState
+                    xPos: 0
+                    yPos: 0
+                mapToOrderState:
+                    functionDescription: |
+                        Convert an Order that reached the soft deadline into an OrderState.
+                        Set OrderID from Order.ID; set Status to TIMED_OUT; leave ConfirmedItems nil.
+                    functionInitializerGroup: ""
+                    functionModule: ""
+                    functionName: MapToOrderState
+                    functionPackage: ""
+                    name: Map to Order State
+                    source: softDeadline
+                    type: Map
+                    valueType: orderState
+                    xPos: -459
+                    yPos: 76
+                mergeResults:
+                    name: Merge Results
+                    sources:
+                        - mapToOrderState
+                        - mapOrderItemResultToOrderState
+                    type: Merge
+                    xPos: -178
+                    yPos: 24
+                processOrder:
+                    endpoint: processOrder
+                    name: Process Order
+                    source: mergeResults
+                    type: Input
+                    valueType: order
+                    xPos: -343
+                    yPos: -229
+                processOrderItem:
+                    endpoint: processOrderItem
+                    name: Process Order Item
+                    source: processOrderItems
+                    type: Sink
+                    valueType: orderItemResult
+                    xPos: -75
+                    yPos: -311
+                processOrderItems:
+                    functionDescription: |
+                        Expand an Order into individual OrderItem messages — one sc.Collect call per element of Order.Items.
+                        Copy Order.ID into each emitted OrderItem.OrderID.
+                    functionInitializerGroup: ""
+                    functionModule: ""
+                    functionName: ProcessOrderItems
+                    functionPackage: ""
+                    name: Process Order Items
+                    source: splitPipeline
+                    type: FlatMap
+                    valueType: orderItem
+                    xPos: -197
+                    yPos: -473
+                softDeadline:
+                    duration: 0
+                    functionDescription: |
+                        Cast stream.GetConfig() to *runtimecfg.DelayStreamConfig and convert cfg.Duration (int, milliseconds) to time.Duration — this is the safety margin.
+                        If ctx has no deadline (ctx.Deadline() ok==false), return the margin directly.
+                        Otherwise compute time.Until(deadline) minus the margin: if the result is negative return 0, otherwise return it.
+                    functionInitializerGroup: ""
+                    functionModule: ""
+                    functionName: SoftDeadline
+                    functionPackage: ""
+                    name: Soft Deadline
+                    source: splitPipeline
+                    type: Delay
+                    xPos: -706
+                    yPos: -33
+                splitPipeline:
+                    name: Split Pipeline
+                    source: processOrder
+                    type: Split
+                    xPos: -416
+                    yPos: -472
+        programmingLanguage: GoLang
+        shutdownTimeout: 30000
+        statusHandler: status
+settings:
+    moduleVersion: v0.0.1
+    name: Example
+    repoPath: github.com/gorundebug/example
+types:
+    order:
+        definitionFormat: Native
+        description: 'E-commerce order submitted by a customer. Fields: ID string, CustomerID string, Items []OrderItem, CreatedAt time.Time.'
+        name: Order
+        publicType: false
+        transferByValue: false
+        type: struct
+    orderItem:
+        definitionFormat: Native
+        description: 'A single line item within an order. Fields: OrderID string, ItemID string, SKU string, Quantity int.'
+        module: model
+        name: OrderItem
+        publicType: false
+        transferByValue: false
+        type: struct
+    orderItemResult:
+        definitionFormat: Native
+        description: 'Inventory reservation result for a single order item. Fields: OrderID string, ItemID string, SKU string, RequestedQty int, AvailableQty int, Reserved bool, Status string (CONFIRMED / OUT_OF_STOCK), UnitPrice float64.'
+        module: model
+        name: OrderItemResult
+        publicType: false
+        transferByValue: false
+        type: struct
+    orderState:
+        definitionFormat: Native
+        description: 'Processing result of an order. Fields: OrderID string, Status string (CONFIRMED — all items reserved; PARTIALLY_CONFIRMED — some items out of stock; TIMED_OUT — order timed out), ConfirmedItems []OrderItemResult, TotalAmount float64, ProcessedAt time.Time.'
+        name: OrderState
+        publicType: false
+        transferByValue: false
+        type: struct

@@ -1,0 +1,10 @@
+dataConnectors:
+  inventoryServiceApi:
+    address: $inventoryServiceApiAddress
+services:
+  orderService:
+    environment: $orderServiceEnvironment
+    grpcHost: $orderServiceGrpcHost
+    grpcPort: $orderServiceGrpcPort
+    httpHost: $orderServiceHttpHost
+    httpPort: $orderServiceHttpPort
