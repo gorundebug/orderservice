@@ -1,6 +1,7 @@
 package serdes
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/gorundebug/orderservice/internal/types"
@@ -24,12 +25,14 @@ func (s *OrderStateSerde) DeserializeObj(data []byte) (interface{}, error) {
 	return s.Deserialize(data)
 }
 
-func (s *OrderStateSerde) Serialize(value *types.OrderState, b []byte) ([]byte, error) {
-	// TODO: Need to be implemented
-	return nil, fmt.Errorf("serialize method for the 'OrderStateSerde' class is not implemented")
+func (s *OrderStateSerde) Serialize(value *types.OrderState, _ []byte) ([]byte, error) {
+	return json.Marshal(value)
 }
 
 func (s *OrderStateSerde) Deserialize(data []byte) (*types.OrderState, error) {
-	// TODO: Need to be implemented
-	return nil, fmt.Errorf("deserialize method for the 'OrderStateSerde' class is not implemented")
+	var v types.OrderState
+	if err := json.Unmarshal(data, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
 }

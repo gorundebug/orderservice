@@ -69,9 +69,13 @@ type Config struct {
 	} `yaml:"endpoints" mapstructure:"endpoints"`
 
 	Pools struct {
+		DefaultPool cfg.PoolConfig `yaml:"defaultPool" mapstructure:"defaultPool"`
 	} `yaml:"pools" mapstructure:"pools"`
 
 	Links struct {
+		ProcessOrderToSplitPipeline      cfg.LinkConfig `yaml:"processOrderToSplitPipeline" mapstructure:"processOrderToSplitPipeline"`
+		SplitPipelineToProcessOrderItems cfg.LinkConfig `yaml:"splitPipelineToProcessOrderItems" mapstructure:"splitPipelineToProcessOrderItems"`
+		SplitPipelineToSoftDeadline      cfg.LinkConfig `yaml:"splitPipelineToSoftDeadline" mapstructure:"splitPipelineToSoftDeadline"`
 	} `yaml:"links" mapstructure:"links"`
 
 	Modules struct {
@@ -129,11 +133,17 @@ func (c *Config) GetEndpoints() []cfg.EndpointConfig {
 }
 
 func (c *Config) GetPools() []*cfg.PoolConfig {
-	return []*cfg.PoolConfig{}
+	return []*cfg.PoolConfig{
+		&c.Pools.DefaultPool,
+	}
 }
 
 func (c *Config) GetLinks() []*cfg.LinkConfig {
-	return []*cfg.LinkConfig{}
+	return []*cfg.LinkConfig{
+		&c.Links.ProcessOrderToSplitPipeline,
+		&c.Links.SplitPipelineToProcessOrderItems,
+		&c.Links.SplitPipelineToSoftDeadline,
+	}
 }
 
 func (c *Config) GetModules() []*cfg.ModuleConfig {
@@ -154,7 +164,16 @@ func (c *Config) GetTypes() []*cfg.TypeConfig {
 }
 
 func (c *Config) ApplyEnvironment() error {
+	if err := c.applyDefaultPoolExecutorsCount(); err != nil {
+		return err
+	}
 	if err := c.applyInventoryServiceApiAddress(); err != nil {
+		return err
+	}
+	if err := c.applyInventoryServiceApiConnectionsCount(); err != nil {
+		return err
+	}
+	if err := c.applyOrderServiceDefaultGrpcTimeout(); err != nil {
 		return err
 	}
 	if err := c.applyOrderServiceEnvironment(); err != nil {
@@ -172,6 +191,24 @@ func (c *Config) ApplyEnvironment() error {
 	if err := c.applyOrderServiceHttpPort(); err != nil {
 		return err
 	}
+	if err := c.applySoftDeadlineDuration(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Config) applyDefaultPoolExecutorsCount() error {
+	value, exists := os.LookupEnv("DEFAULT_POOL_EXECUTORS_COUNT")
+	if !exists {
+		return nil
+	}
+
+	intVal, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("failed to convert DEFAULT_POOL_EXECUTORS_COUNT to int: %w", err)
+	}
+	c.Pools.DefaultPool.ExecutorsCount = intVal
+
 	return nil
 }
 
@@ -182,6 +219,36 @@ func (c *Config) applyInventoryServiceApiAddress() error {
 	}
 
 	c.DataConnectors.InventoryServiceApi.Address = value
+
+	return nil
+}
+
+func (c *Config) applyInventoryServiceApiConnectionsCount() error {
+	value, exists := os.LookupEnv("INVENTORY_SERVICE_API_CONNECTIONS_COUNT")
+	if !exists {
+		return nil
+	}
+
+	intVal, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("failed to convert INVENTORY_SERVICE_API_CONNECTIONS_COUNT to int: %w", err)
+	}
+	c.DataConnectors.InventoryServiceApi.ConnectionsCount = intVal
+
+	return nil
+}
+
+func (c *Config) applyOrderServiceDefaultGrpcTimeout() error {
+	value, exists := os.LookupEnv("ORDER_SERVICE_DEFAULT_GRPC_TIMEOUT")
+	if !exists {
+		return nil
+	}
+
+	intVal, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("failed to convert ORDER_SERVICE_DEFAULT_GRPC_TIMEOUT to int: %w", err)
+	}
+	c.Services.OrderService.DefaultGrpcTimeout = intVal
 
 	return nil
 }
@@ -249,6 +316,21 @@ func (c *Config) applyOrderServiceHttpPort() error {
 	return nil
 }
 
+func (c *Config) applySoftDeadlineDuration() error {
+	value, exists := os.LookupEnv("SOFT_DEADLINE_DURATION")
+	if !exists {
+		return nil
+	}
+
+	intVal, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("failed to convert SOFT_DEADLINE_DURATION to int: %w", err)
+	}
+	c.Streams.SoftDeadline.Duration = intVal
+
+	return nil
+}
+
 func MakeConfig() *Config {
 	return &Config{
 		Services: struct {
@@ -261,15 +343,16 @@ func MakeConfig() *Config {
 				DefaultCallSemantics: &cfg.CallSemanticsGroup{
 					FunctionCall: &cfg.FunctionCallSemanticsConfig{},
 				},
-				GrpcHost:        "0.0.0.0",
-				GrpcPort:        9201,
-				HttpHost:        "0.0.0.0",
-				HttpPort:        9091,
-				MetricsHandler:  "metrics",
-				ShutdownTimeout: 30000,
-				StatusHandler:   "status",
-				GolangVersion:   "1.25.4",
-				ModulePath:      "github.com/gorundebug/orderservice",
+				GrpcHost:           "0.0.0.0",
+				GrpcPort:           9201,
+				HttpHost:           "0.0.0.0",
+				HttpPort:           9091,
+				MetricsHandler:     "metrics",
+				ShutdownTimeout:    30000,
+				StatusHandler:      "status",
+				DefaultGrpcTimeout: 5000,
+				GolangVersion:      "1.25.4",
+				ModulePath:         "github.com/gorundebug/orderservice",
 			},
 		},
 		Streams: struct {
@@ -288,8 +371,8 @@ func MakeConfig() *Config {
 				Pipeline:            "order",
 				IdService:           orderServiceServiceID,
 				IdSource:            processOrderItemStreamID,
-				XPos:                0,
-				YPos:                0,
+				XPos:                103,
+				YPos:                -52,
 				ValueType:           "OrderState",
 				FunctionName:        "MapOrderItemResultToOrderState",
 				FunctionDescription: "Convert a single OrderItemResult into an OrderState.\nSet OrderID from result.OrderID; set Status=CONFIRMED if result.Reserved==true, otherwise PARTIALLY_CONFIRMED.\nSet ConfirmedItems to a single-element slice containing result.\n",
@@ -301,8 +384,8 @@ func MakeConfig() *Config {
 				Pipeline:            "order",
 				IdService:           orderServiceServiceID,
 				IdSource:            softDeadlineStreamID,
-				XPos:                -459,
-				YPos:                76,
+				XPos:                -453,
+				YPos:                73,
 				ValueType:           "OrderState",
 				FunctionName:        "MapToOrderState",
 				FunctionDescription: "Convert an Order that reached the soft deadline into an OrderState.\nSet OrderID from Order.ID; set Status to TIMED_OUT; leave ConfirmedItems nil.\n",
@@ -314,8 +397,8 @@ func MakeConfig() *Config {
 				Pipeline:  "order",
 				IdService: orderServiceServiceID,
 				IdSources: []int{mapToOrderStateStreamID, mapOrderItemResultToOrderStateStreamID},
-				XPos:      -178,
-				YPos:      24,
+				XPos:      -228,
+				YPos:      130,
 			},
 
 			ProcessOrder: cfg.InputStreamConfig{
@@ -324,8 +407,8 @@ func MakeConfig() *Config {
 				Pipeline:   "order",
 				IdService:  orderServiceServiceID,
 				IdSource:   mergeResultsStreamID,
-				XPos:       -343,
-				YPos:       -229,
+				XPos:       -382,
+				YPos:       -315,
 				ValueType:  "Order",
 				IdEndpoint: processOrderEndpointID,
 			},
@@ -336,8 +419,8 @@ func MakeConfig() *Config {
 				Pipeline:   "order",
 				IdService:  orderServiceServiceID,
 				IdSource:   processOrderItemsStreamID,
-				XPos:       -75,
-				YPos:       -311,
+				XPos:       -52,
+				YPos:       -362,
 				ValueType:  "OrderItemResult",
 				IdEndpoint: processOrderItemEndpointID,
 			},
@@ -348,8 +431,8 @@ func MakeConfig() *Config {
 				Pipeline:            "order",
 				IdService:           orderServiceServiceID,
 				IdSource:            splitPipelineStreamID,
-				XPos:                -197,
-				YPos:                -473,
+				XPos:                -198,
+				YPos:                -662,
 				ValueType:           "OrderItem",
 				FunctionName:        "ProcessOrderItems",
 				FunctionDescription: "Expand an Order into individual OrderItem messages — one sc.Collect call per element of Order.Items.\nCopy Order.ID into each emitted OrderItem.OrderID.\n",
@@ -361,8 +444,9 @@ func MakeConfig() *Config {
 				Pipeline:            "order",
 				IdService:           orderServiceServiceID,
 				IdSource:            splitPipelineStreamID,
-				XPos:                -706,
-				YPos:                -33,
+				XPos:                -745,
+				YPos:                -235,
+				Duration:            1000,
 				FunctionName:        "SoftDeadline",
 				FunctionDescription: "Cast stream.GetConfig() to *runtimecfg.DelayStreamConfig and convert cfg.Duration (int, milliseconds) to time.Duration — this is the safety margin.\nIf ctx has no deadline (ctx.Deadline() ok==false), return the margin directly.\nOtherwise compute time.Until(deadline) minus the margin: if the result is negative return 0, otherwise return it.\n",
 			},
@@ -373,8 +457,8 @@ func MakeConfig() *Config {
 				Pipeline:  "order",
 				IdService: orderServiceServiceID,
 				IdSource:  processOrderStreamID,
-				XPos:      -416,
-				YPos:      -472,
+				XPos:      -620,
+				YPos:      -554,
 			},
 		},
 		DataConnectors: struct {
@@ -382,11 +466,12 @@ func MakeConfig() *Config {
 			OrderServiceApi     cfg.HttpDataConnectorConfig `yaml:"orderServiceApi" mapstructure:"orderServiceApi"`
 		}{
 			InventoryServiceApi: cfg.GrpcDataConnectorConfig{
-				ID:             inventoryServiceApiConnectorID,
-				Name:           "Inventory Service API",
-				Implementation: api.DataConnectorImplementationGoogleGRPC,
-				Module:         "inventory_service_api",
-				Address:        "dns:///localhost:9202",
+				ID:               inventoryServiceApiConnectorID,
+				Name:             "Inventory Service API",
+				Implementation:   api.DataConnectorImplementationGoogleGRPC,
+				Module:           "inventory_service_api",
+				Address:          "dns:///localhost:9202",
+				ConnectionsCount: 1,
 			},
 
 			OrderServiceApi: cfg.HttpDataConnectorConfig{
@@ -421,9 +506,43 @@ func MakeConfig() *Config {
 			},
 		},
 		Pools: struct {
-		}{},
+			DefaultPool cfg.PoolConfig `yaml:"defaultPool" mapstructure:"defaultPool"`
+		}{
+			DefaultPool: cfg.PoolConfig{
+				Name:           "Default Pool",
+				ExecutorsCount: 2,
+			},
+		},
 		Links: struct {
-		}{},
+			ProcessOrderToSplitPipeline      cfg.LinkConfig `yaml:"processOrderToSplitPipeline" mapstructure:"processOrderToSplitPipeline"`
+			SplitPipelineToProcessOrderItems cfg.LinkConfig `yaml:"splitPipelineToProcessOrderItems" mapstructure:"splitPipelineToProcessOrderItems"`
+			SplitPipelineToSoftDeadline      cfg.LinkConfig `yaml:"splitPipelineToSoftDeadline" mapstructure:"splitPipelineToSoftDeadline"`
+		}{
+			ProcessOrderToSplitPipeline: cfg.LinkConfig{
+				From: processOrderStreamID,
+				To:   splitPipelineStreamID,
+				CallSemantics: &cfg.CallSemanticsGroup{
+					PriorityTaskPool: &cfg.PriorityTaskPoolCallSemanticsConfig{
+						PoolName: "Default Pool",
+						Priority: 1,
+					},
+				},
+			},
+			SplitPipelineToProcessOrderItems: cfg.LinkConfig{
+				From: splitPipelineStreamID,
+				To:   processOrderItemsStreamID,
+				CallSemantics: &cfg.CallSemanticsGroup{
+					ParallelCall: &cfg.ParallelCallSemanticsConfig{},
+				},
+			},
+			SplitPipelineToSoftDeadline: cfg.LinkConfig{
+				From: splitPipelineStreamID,
+				To:   softDeadlineStreamID,
+				CallSemantics: &cfg.CallSemanticsGroup{
+					ParallelCall: &cfg.ParallelCallSemanticsConfig{},
+				},
+			},
+		},
 		Modules: struct {
 			InventoryServiceApi cfg.ModuleConfig `yaml:"inventoryServiceApi" mapstructure:"inventoryServiceApi"`
 			Model               cfg.ModuleConfig `yaml:"model" mapstructure:"model"`

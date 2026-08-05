@@ -8,6 +8,7 @@ LDFLAGS := -X main.build_version=$(BUILD_VERSION) -X main.build_commit=$(GIT_COM
 BIN_DIR := $(PROJECT_DIR)/bin
 TOOLS_DIR ?= $(abspath ./tools)
 BUF := $(TOOLS_DIR)/buf
+PROTOC ?= $(TOOLS_DIR)/protoc
 GOLANGCI_LINT ?= $(TOOLS_DIR)/golangci-lint
 GOLANGCI_LINT_VERSION := v1.64.8
 ACT_VERSION := v0.2.74
@@ -43,10 +44,10 @@ clean:
 gen-proto:
 	@if [ -d internal/proto ]; then \
 		echo "Generate proto code..."; \
-		find . -type f -name 'go.proto.mk' | while read mkfile; do \
+		find . -type f -name 'go.generated.proto.mk' | while read mkfile; do \
 			dir=$$(dirname $$mkfile); \
 			echo "Generating files in $$dir..."; \
-			$(MAKE) -C $$dir -f $$(basename $$mkfile) gen MODULE_DIR="$(MODULE_DIR)"; \
+			$(MAKE) -C $$dir -f $$(basename $$mkfile) gen MODULE_DIR="$(MODULE_DIR)" PROTOC="$(PROTOC)"; \
 		done; \
 	fi
 
@@ -92,8 +93,8 @@ run:
 	go run "./cmd/service/main.go" -config "./config/config.yaml" -values "./config/overrides.yaml"
 
 hooks: ## Install git hooks (pre-commit: lint, pre-push: test)
-	@cp scripts/pre-commit.sh .git/hooks/pre-commit
+	@cp scripts/pre-commit.generated.sh .git/hooks/pre-commit
 	@chmod +x .git/hooks/pre-commit
-	@cp scripts/pre-push.sh .git/hooks/pre-push
+	@cp scripts/pre-push.generated.sh .git/hooks/pre-push
 	@chmod +x .git/hooks/pre-push
 	@echo "Git hooks installed."

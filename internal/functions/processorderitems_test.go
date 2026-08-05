@@ -10,18 +10,38 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Expand an Order into individual OrderItem messages — one sc.Collect call per element of Order.Items. Copy Order.ID
-// into each emitted OrderItem.OrderID.
+// Expand an Order into individual OrderItem messages — one sc.Collect call per element of Order.Items. Each item is
+// emitted independently so downstream inventory checks run concurrently in the pipeline. Copy the OrderID into each
+// OrderItem so correlation is preserved through the pipeline.
 
 func TestProcessOrderItems_FlatMap(t *testing.T) {
-	t.Skip("not yet implemented") // TODO: remove when implementation is ready
 	f := &ProcessOrderItems{}
 	var collected []*types.OrderItem
 	out := runtime.CollectFunc[*types.OrderItem](func(_ context.Context, v *types.OrderItem) {
 		collected = append(collected, v)
 	})
-	var value *types2.Order
-	// TODO: populate value with meaningful test data
+	value := &types2.Order{
+		ID: "order-123",
+		Items: []*types.OrderItem{
+			{ItemID: "item-1", SKU: "SKU-001", Quantity: 2, UnitPrice: 10.0},
+			{ItemID: "item-2", SKU: "SKU-002", Quantity: 1, UnitPrice: 5.0},
+		},
+	}
 	f.FlatMap(context.Background(), nil, value, out)
-	assert.NotEmpty(t, collected)
+	assert.Len(t, collected, 2)
+	assert.Equal(t, "order-123", collected[0].OrderID)
+	assert.Equal(t, "item-1", collected[0].ItemID)
+	assert.Equal(t, "order-123", collected[1].OrderID)
+	assert.Equal(t, "item-2", collected[1].ItemID)
+}
+
+func TestProcessOrderItems_FlatMap_EmptyItems(t *testing.T) {
+	f := &ProcessOrderItems{}
+	var collected []*types.OrderItem
+	out := runtime.CollectFunc[*types.OrderItem](func(_ context.Context, v *types.OrderItem) {
+		collected = append(collected, v)
+	})
+	value := &types2.Order{ID: "order-empty", Items: nil}
+	f.FlatMap(context.Background(), nil, value, out)
+	assert.Empty(t, collected)
 }

@@ -17,7 +17,7 @@ WORKDIR /app
 
 COPY bin/orderservice ./service
 COPY orderservice/config/ ./config/
-COPY orderservice/docker-entrypoint.sh ./docker-entrypoint.sh
+COPY orderservice/docker-entrypoint.generated.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
 
 EXPOSE 9091

@@ -5,11 +5,12 @@ import (
 
 	"github.com/gorundebug/orderservice/internal/types"
 
+	"time"
+
 	"github.com/gorundebug/servicelib/runtime"
 	runtimecfg "github.com/gorundebug/servicelib/runtime/config"
 	"github.com/gorundebug/servicelib/runtime/environment"
 	"github.com/gorundebug/servicelib/transformation"
-	"time"
 )
 
 var _ transformation.DelayFunction[*types.Order] = (*SoftDeadline)(nil)
@@ -17,21 +18,22 @@ var _ transformation.DelayFunction[*types.Order] = (*SoftDeadline)(nil)
 // SoftDeadline
 type SoftDeadline struct{}
 
-func (f *SoftDeadline) Duration(_ context.Context, stream runtime.Stream, value *types.Order) time.Duration {
-	//TODO: Need to be implemented
-	// Cast stream.GetConfig() to *runtimecfg.DelayStreamConfig and convert cfg.Duration (int, milliseconds) to
-	// time.Duration — this is the safety margin. If ctx has no deadline (ctx.Deadline() ok==false), return the margin
-	// directly. Otherwise compute time.Until(deadline) minus the margin: if the result is negative return 0, otherwise
-	// return it.
-
-	// Runtime invariant: Delay streams always have *runtimecfg.DelayStreamConfig.
-	// Therefore the type assertion cannot fail.
+func (f *SoftDeadline) Duration(ctx context.Context, stream runtime.Stream, _ *types.Order) time.Duration {
 	cfg := stream.GetConfig().(*runtimecfg.DelayStreamConfig)
-	return time.Duration(cfg.Duration) * time.Millisecond
+	margin := time.Duration(cfg.Duration) * time.Millisecond
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return margin
+	}
+	d := time.Until(deadline) - margin
+	if d < 0 {
+		return 0
+	}
+	return d
 }
 
 func (f *SoftDeadline) DelayError(_ context.Context, _ runtime.Stream, _ *types.Order, _ error, _ runtime.Collect[*types.Order]) {
-	//TODO: Need to be implemented — decide whether to re-emit the value or drop it
+	// drop: if the delay itself errors the order is already being handled by the timeout branch or is stale
 }
 
 // MakeSoftDeadline is instantiated once at application startup via its maker function.

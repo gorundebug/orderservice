@@ -12,8 +12,7 @@
 local g = import 'github.com/grafana/grafonnet/gen/grafonnet-v11.0.0/main.libsonnet';
 local lib = import '_lib.libsonnet';
 
-local jobFilter = 'job=~"$job"';
-local cliFilter = '%s, server_address=~"$server_address"' % jobFilter;
+local cliFilter = 'server_address=~"$server_address"';
 
 lib.dashboard(
   title='%s / HTTP Client' % lib.svc,
@@ -21,8 +20,7 @@ lib.dashboard(
   tags=['http', 'client'],
   variables=[
     lib.dsVar,
-    lib.jobVar('http_client_request_duration_seconds_bucket'),
-    lib.labelVar('server_address', 'server_address', 'http_client_request_duration_seconds_bucket', jobFilter),
+    lib.labelVar('server_address', 'server_address', 'http_client_request_duration_seconds_bucket'),
   ],
   panels=[
     // -------------------------------------------------------------------------
@@ -82,17 +80,6 @@ lib.dashboard(
       ],
       w=8, h=8,
       unit='s',
-    ),
-
-    // -------------------------------------------------------------------------
-    // Row: Latency Heatmap
-    // -------------------------------------------------------------------------
-    lib.row('Latency Heatmap'),
-
-    lib.heatmap(
-      title='Request Duration Heatmap',
-      metric='http_client_request_duration_seconds',
-      filters=cliFilter,
     ),
 
     // -------------------------------------------------------------------------

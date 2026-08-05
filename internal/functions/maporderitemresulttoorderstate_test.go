@@ -10,18 +10,49 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Convert a single OrderItemResult into an OrderState. Set OrderID from result.OrderID; set Status=CONFIRMED if
-// result.Reserved==true, otherwise PARTIALLY_CONFIRMED. Set ConfirmedItems to a single-element slice containing result.
+// Convert a single OrderItemResult returned from the inventory service into an OrderState for the merge node. Set
+// Status=CONFIRMED if result.Reserved==true, otherwise PARTIALLY_CONFIRMED. Copy OrderID from the result so the merge
+// node can correlate it with the original request and accumulate per-item outcomes into the final response.
 
-func TestMapOrderItemResultToOrderState_Map(t *testing.T) {
-	t.Skip("not yet implemented") // TODO: remove when implementation is ready
+func TestMapOrderItemResultToOrderState_Map_Confirmed(t *testing.T) {
 	f := &MapOrderItemResultToOrderState{}
 	var collected []*types.OrderState
 	out := runtime.CollectFunc[*types.OrderState](func(_ context.Context, v *types.OrderState) {
 		collected = append(collected, v)
 	})
-	var value *types2.OrderItemResult
-	// TODO: populate value with meaningful test data
+	value := &types2.OrderItemResult{
+		OrderID:      "order-123",
+		ItemID:       "item-1",
+		SKU:          "SKU-001",
+		RequestedQty: 2,
+		AvailableQty: 2,
+		Reserved:     true,
+		Status:       "CONFIRMED",
+	}
 	f.Map(context.Background(), nil, value, out)
-	assert.NotEmpty(t, collected)
+	assert.Len(t, collected, 1)
+	assert.Equal(t, "order-123", collected[0].OrderID)
+	assert.Equal(t, "CONFIRMED", collected[0].Status)
+	assert.Len(t, collected[0].ConfirmedItems, 1)
+}
+
+func TestMapOrderItemResultToOrderState_Map_PartiallyConfirmed(t *testing.T) {
+	f := &MapOrderItemResultToOrderState{}
+	var collected []*types.OrderState
+	out := runtime.CollectFunc[*types.OrderState](func(_ context.Context, v *types.OrderState) {
+		collected = append(collected, v)
+	})
+	value := &types2.OrderItemResult{
+		OrderID:      "order-456",
+		ItemID:       "item-2",
+		SKU:          "SKU-002",
+		RequestedQty: 5,
+		AvailableQty: 3,
+		Reserved:     false,
+		Status:       "OUT_OF_STOCK",
+	}
+	f.Map(context.Background(), nil, value, out)
+	assert.Len(t, collected, 1)
+	assert.Equal(t, "order-456", collected[0].OrderID)
+	assert.Equal(t, "PARTIALLY_CONFIRMED", collected[0].Status)
 }

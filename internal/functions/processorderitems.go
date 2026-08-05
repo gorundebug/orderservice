@@ -17,10 +17,12 @@ var _ transformation.FlatMapFunction[*types2.Order, *types.OrderItem] = (*Proces
 // ProcessOrderItems
 type ProcessOrderItems struct{}
 
-func (f *ProcessOrderItems) FlatMap(_ context.Context, _ runtime.Stream, value *types2.Order, out runtime.Collect[*types.OrderItem]) {
-	//TODO: Need to be implemented
-	// Expand an Order into individual OrderItem messages — one sc.Collect call per element of Order.Items. Copy Order.ID
-	// into each emitted OrderItem.OrderID.
+func (f *ProcessOrderItems) FlatMap(ctx context.Context, _ runtime.Stream, value *types2.Order, out runtime.Collect[*types.OrderItem]) {
+	for _, item := range value.Items {
+		itemCopy := *item
+		itemCopy.OrderID = value.ID
+		out.Out(ctx, &itemCopy)
+	}
 }
 
 // MakeProcessOrderItems is instantiated once at application startup via its maker function.

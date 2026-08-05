@@ -1,10 +1,18 @@
 dataConnectors:
   inventoryServiceApi:
     address: $inventoryServiceApiAddress
+    connectionsCount: $inventoryServiceApiConnectionsCount
+pools:
+  defaultPool:
+    executorsCount: $defaultPoolExecutorsCount
 services:
   orderService:
+    defaultGrpcTimeout: $orderServiceDefaultGrpcTimeout
     environment: $orderServiceEnvironment
     grpcHost: $orderServiceGrpcHost
     grpcPort: $orderServiceGrpcPort
     httpHost: $orderServiceHttpHost
     httpPort: $orderServiceHttpPort
+streams:
+  softDeadline:
+    duration: $softDeadlineDuration

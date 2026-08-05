@@ -17,10 +17,16 @@ var _ transformation.MapFunction[*types2.OrderItemResult, *types.OrderState] = (
 // MapOrderItemResultToOrderState
 type MapOrderItemResultToOrderState struct{}
 
-func (f *MapOrderItemResultToOrderState) Map(_ context.Context, _ runtime.Stream, value *types2.OrderItemResult, out runtime.Collect[*types.OrderState]) {
-	//TODO: Need to be implemented
-	// Convert a single OrderItemResult into an OrderState. Set OrderID from result.OrderID; set Status=CONFIRMED if
-	// result.Reserved==true, otherwise PARTIALLY_CONFIRMED. Set ConfirmedItems to a single-element slice containing result.
+func (f *MapOrderItemResultToOrderState) Map(ctx context.Context, _ runtime.Stream, value *types2.OrderItemResult, out runtime.Collect[*types.OrderState]) {
+	status := "PARTIALLY_CONFIRMED"
+	if value.Reserved {
+		status = "CONFIRMED"
+	}
+	out.Out(ctx, &types.OrderState{
+		OrderID:        value.OrderID,
+		Status:         status,
+		ConfirmedItems: []*types2.OrderItemResult{value},
+	})
 }
 
 // MakeMapOrderItemResultToOrderState is instantiated once at application startup via its maker function.

@@ -2,7 +2,7 @@
 
 ```mermaid
 flowchart LR
-  s5["Map Order Item Result To Order State
+  s5["MapOrderItemResultToOrderState
 OrderState"]
   s6["Map to Order State
 OrderState"]

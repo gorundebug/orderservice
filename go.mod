@@ -3,10 +3,11 @@ module github.com/gorundebug/orderservice
 go 1.25.4
 
 require (
-	github.com/gorundebug/inventory_service_api v0.0.1
-	github.com/gorundebug/model v0.0.1
-	github.com/gorundebug/order_service_api v0.0.1
-	github.com/gorundebug/servicelib v0.0.302
+	github.com/google/uuid v1.6.0
+	github.com/gorundebug/inventory_service_api v0.0.2
+	github.com/gorundebug/model v0.0.2
+	github.com/gorundebug/order_service_api v0.0.2
+	github.com/gorundebug/servicelib v0.0.315
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/sync v0.20.0
 	google.golang.org/grpc v1.81.1
@@ -22,7 +23,6 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pelletier/go-toml/v2 v2.3.1 // indirect

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -23,7 +24,12 @@ import (
 	"github.com/gorundebug/servicelib/transformation"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/attributes"
+	_ "google.golang.org/grpc/balancer/roundrobin"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/resolver"
+	"google.golang.org/grpc/resolver/manual"
+	"google.golang.org/grpc/stats"
 
 	"github.com/gorundebug/inventory_service_api/pkg/generated/proto/inventoryserviceapi"
 	"github.com/gorundebug/inventory_service_api/pkg/generated/proto/inventoryserviceapi/processorderitem"
@@ -65,7 +71,8 @@ type serviceStreams struct {
 	processOrder                   runtime.TypedInputStream[*types.Order, *types.OrderState, error]
 	splitPipeline                  runtime.TypedSplitStream[*types.Order]
 	processOrderItems              runtime.TypedTransformConsumedStream[*types.Order, *types2.OrderItem]
-	processOrderItem               runtime.TypedSinkStreamWithResult[*types2.OrderItem, *types2.OrderItemResult, error]
+	processOrderItem               runtime.TypedSinkStreamWithResult[*types2.OrderItem, *types2.OrderItemResult, *types.OrderState]
+	processOrderItemError          runtime.TypedConsumedStream[*types.OrderState]
 	mapOrderItemResultToOrderState runtime.TypedTransformConsumedStream[*types2.OrderItemResult, *types.OrderState]
 	softDeadline                   runtime.TypedConsumedStream[*types.Order]
 	mapToOrderState                runtime.TypedTransformConsumedStream[*types.Order, *types.OrderState]
@@ -108,12 +115,6 @@ func (s *Service) GetSerde(valueType reflect.Type) (runtimeserde.Serializer, err
 		return serde, nil
 	}
 	switch valueType {
-	case runtimeserde.GetSerdeType[types.OrderState](), runtimeserde.GetSerdeType[*types.OrderState]():
-		{
-			var serde runtimeserde.Serde[*types.OrderState] = &serdes.OrderStateSerde{}
-			return serde, nil
-		}
-
 	case runtimeserde.GetSerdeType[types.Order](), runtimeserde.GetSerdeType[*types.Order]():
 		{
 			var serde runtimeserde.Serde[*types.Order] = &serdes.OrderSerde{}
@@ -129,6 +130,12 @@ func (s *Service) GetSerde(valueType reflect.Type) (runtimeserde.Serializer, err
 	case runtimeserde.GetSerdeType[types2.OrderItemResult](), runtimeserde.GetSerdeType[*types2.OrderItemResult]():
 		{
 			var serde runtimeserde.Serde[*types2.OrderItemResult] = &serdes2.OrderItemResultSerde{}
+			return serde, nil
+		}
+
+	case runtimeserde.GetSerdeType[types.OrderState](), runtimeserde.GetSerdeType[*types.OrderState]():
+		{
+			var serde runtimeserde.Serde[*types.OrderState] = &serdes.OrderStateSerde{}
 			return serde, nil
 		}
 
@@ -154,18 +161,49 @@ func (s *Service) initMakers(ctx context.Context) error {
 	}
 	if s.inventoryServiceApiGrpcClientMaker == nil {
 		s.inventoryServiceApiGrpcClientMaker = func(ctx context.Context, cfg *runtimecfg.GrpcDataConnectorConfig, env runtime.RuntimeEnvironment) (*grpc.ClientConn, inventoryserviceapi.InventoryServiceApiClient, error) {
-			opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-			if te := env.TracingEngine(); te != nil {
-				if h := te.GRPCClientHandler(); h != nil {
-					opts = append(opts, grpc.WithStatsHandler(h))
-				}
+			connectionsCount := cfg.ConnectionsCount
+			if connectionsCount == 0 {
+				connectionsCount = 1
 			}
+			if connectionsCount < 1 {
+				return nil, nil, fmt.Errorf("gRPC connector %q connectionsCount must be at least 1", cfg.Name)
+			}
+			opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+			var statsHandlers []stats.Handler
 			if me := env.MetricsEngine(); me != nil {
 				if h := me.GRPCClientHandler(); h != nil {
-					opts = append(opts, grpc.WithStatsHandler(h))
+					statsHandlers = append(statsHandlers, h)
 				}
 			}
-			conn, connErr := grpc.NewClient(cfg.Address, opts...)
+			if te := env.TracingEngine(); te != nil {
+				if h := te.GRPCClientHandler(); h != nil {
+					statsHandlers = append(statsHandlers, h)
+				}
+			}
+			if h := runtime.CombineGRPCStatsHandlers(statsHandlers...); h != nil {
+				opts = append(opts, grpc.WithStatsHandler(h))
+			}
+			target := cfg.Address
+			if connectionsCount > 1 {
+				builder := manual.NewBuilderWithScheme(fmt.Sprintf("servicelib-%d", cfg.ID))
+				address := strings.TrimPrefix(cfg.Address, "dns:///")
+				address = strings.TrimPrefix(address, "passthrough:///")
+				addresses := make([]resolver.Address, connectionsCount)
+				for index := range addresses {
+					addresses[index] = resolver.Address{
+						Addr:       address,
+						Attributes: attributes.New("servicelib.connection-index", index),
+					}
+				}
+				builder.InitialState(resolver.State{Addresses: addresses})
+				target = builder.Scheme() + ":///" + cfg.Name
+				opts = append(
+					opts,
+					grpc.WithResolvers(builder),
+					grpc.WithDefaultServiceConfig(`{"loadBalancingConfig":[{"round_robin":{}}]}`),
+				)
+			}
+			conn, connErr := grpc.NewClient(target, opts...)
 			if connErr != nil {
 				return nil, nil, fmt.Errorf("gRPC client did not connect to server 'Inventory Service API': %w", connErr)
 			}
@@ -255,9 +293,10 @@ func (s *Service) initStreams(ctx context.Context) error {
 	if s.streams.processOrderItems, err = transformation.FlatMap[*types.Order, *types2.OrderItem](&cfg.Streams.ProcessOrderItems, s.streams.splitPipeline.AddStream(), s.functions.processOrderItems); err != nil {
 		return err
 	}
-	if s.streams.processOrderItem, err = transformation.SinkWithResult[*types2.OrderItem, *types2.OrderItemResult, error](&cfg.Streams.ProcessOrderItem, s.streams.processOrderItems); err != nil {
+	if s.streams.processOrderItem, err = transformation.SinkWithResult[*types2.OrderItem, *types2.OrderItemResult, *types.OrderState](&cfg.Streams.ProcessOrderItem, s.streams.processOrderItems); err != nil {
 		return err
 	}
+	s.streams.processOrderItemError = s.streams.processOrderItem.GetErrorStream()
 	if s.streams.mapOrderItemResultToOrderState, err = transformation.Map[*types2.OrderItemResult, *types.OrderState](&cfg.Streams.MapOrderItemResultToOrderState, s.streams.processOrderItem, s.functions.mapOrderItemResultToOrderState); err != nil {
 		return err
 	}
@@ -267,7 +306,7 @@ func (s *Service) initStreams(ctx context.Context) error {
 	if s.streams.mapToOrderState, err = transformation.Map[*types.Order, *types.OrderState](&cfg.Streams.MapToOrderState, s.streams.softDeadline, s.functions.mapToOrderState); err != nil {
 		return err
 	}
-	if s.streams.mergeResults, err = transformation.Merge[*types.OrderState](&cfg.Streams.MergeResults, s.streams.mapToOrderState, s.streams.mapOrderItemResultToOrderState); err != nil {
+	if s.streams.mergeResults, err = transformation.Merge[*types.OrderState](&cfg.Streams.MergeResults, s.streams.mapToOrderState, s.streams.mapOrderItemResultToOrderState, s.streams.processOrderItemError); err != nil {
 		return err
 	}
 	if err = s.streams.processOrder.SetSource(s.streams.mergeResults); err != nil {

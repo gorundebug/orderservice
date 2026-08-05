@@ -16,10 +16,12 @@ var _ transformation.MapFunction[*types.Order, *types.OrderState] = (*MapToOrder
 // MapToOrderState
 type MapToOrderState struct{}
 
-func (f *MapToOrderState) Map(_ context.Context, _ runtime.Stream, value *types.Order, out runtime.Collect[*types.OrderState]) {
-	//TODO: Need to be implemented
-	// Convert an Order that reached the soft deadline into an OrderState. Set OrderID from Order.ID; set Status to
-	// TIMED_OUT; leave ConfirmedItems nil.
+func (f *MapToOrderState) Map(ctx context.Context, _ runtime.Stream, value *types.Order, out runtime.Collect[*types.OrderState]) {
+	out.Out(ctx, &types.OrderState{
+		OrderID:     value.ID,
+		Status:      "TIMED_OUT",
+		TotalAmount: value.TotalAmount,
+	})
 }
 
 // MakeMapToOrderState is instantiated once at application startup via its maker function.
