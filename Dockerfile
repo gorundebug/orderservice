@@ -10,7 +10,21 @@ ARG TARGETARCH
 ARG SERVICEGEN_RUNTIME_STRIP=ON
 ARG GOPROXY=https://proxy.golang.org,direct
 ENV GOPROXY=${GOPROXY}
-COPY --from=servicelib-source / /servicelib
+ARG GOSUMDB=sum.golang.org
+ENV GOSUMDB=${GOSUMDB}
+COPY --from=servicelib-source / /tmp/servicelib-source
+RUN source_dir=/tmp/servicelib-source; \
+    if [ -f "$source_dir/context" ]; then \
+      mkdir -p /tmp/servicelib-archive; \
+      tar -xf "$source_dir/context" -C /tmp/servicelib-archive; \
+      source_dir=/tmp/servicelib-archive; \
+    fi; \
+    if [ ! -f "$source_dir/go.mod" ]; then \
+      source_dir=$(find "$source_dir" -mindepth 1 -maxdepth 1 -type d | head -n 1); \
+    fi; \
+    test -n "$source_dir" && test -f "$source_dir/go.mod"; \
+    mkdir -p /servicelib; \
+    cp -a "$source_dir/." /servicelib/
 COPY . /workspace
 WORKDIR /workspace/${SERVICE_DIR}
 RUN if [ -f /workspace/go.work ]; then \

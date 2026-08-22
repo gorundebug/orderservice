@@ -15,16 +15,23 @@ ACT_VERSION := v0.2.74
 ACT := $(TOOLS_DIR)/act
 OS := $(shell uname -s)
 ARCH := $(shell uname -m)
-SERVICELIB_SOURCE_CONTEXT ?= https://github.com/gorundebug/servicelib.git#v0.2.5
+GOSERVICELIB_SOURCE_CONTEXT ?= https://github.com/gorundebug/servicelib.git#v0.2.6
 SERVICEGEN_RUNTIME_STRIP ?= ON
+SERVICEGEN_GITHUB_RAW_URL ?= https://github.com
 
 ifneq ($(strip $(SERVICEGEN_DEPENDENCY_PROXY_DIR)),)
 SERVICEGEN_DEPENDENCY_PROXY_HOST ?= localhost
 SERVICEGEN_DEPENDENCY_PROXY_DOCKER_HOST ?= host.docker.internal
 SERVICEGEN_DEPENDENCY_PROXY_PORT ?= 18081
 SERVICEGEN_DEPENDENCY_PROXY_DOCKER_ARGS := --add-host host.docker.internal:host-gateway
-export GOPROXY := http://$(SERVICEGEN_DEPENDENCY_PROXY_HOST):$(SERVICEGEN_DEPENDENCY_PROXY_PORT)/repository/go-proxy/,direct
-docker-build docker-build-local: export GOPROXY := http://$(SERVICEGEN_DEPENDENCY_PROXY_DOCKER_HOST):$(SERVICEGEN_DEPENDENCY_PROXY_PORT)/repository/go-proxy/,direct
+export GOPROXY := http://$(SERVICEGEN_DEPENDENCY_PROXY_HOST):$(SERVICEGEN_DEPENDENCY_PROXY_PORT)/repository/go-proxy/
+export GOSUMDB := off
+export SERVICEGEN_GITHUB_RAW_URL := http://$(SERVICEGEN_DEPENDENCY_PROXY_HOST):$(SERVICEGEN_DEPENDENCY_PROXY_PORT)/repository/github-raw
+export GOSERVICELIB_SOURCE_CONTEXT := http://$(SERVICEGEN_DEPENDENCY_PROXY_DOCKER_HOST):$(SERVICEGEN_DEPENDENCY_PROXY_PORT)/repository/github-raw/gorundebug/servicelib/archive/refs/tags/v0.2.6.tar.gz
+docker-build docker-build-local: export GOPROXY := http://$(SERVICEGEN_DEPENDENCY_PROXY_DOCKER_HOST):$(SERVICEGEN_DEPENDENCY_PROXY_PORT)/repository/go-proxy/
+docker-build docker-build-local: export GOSUMDB := off
+docker-build docker-build-local: export SERVICEGEN_APT_DEBIAN_URL := http://$(SERVICEGEN_DEPENDENCY_PROXY_DOCKER_HOST):$(SERVICEGEN_DEPENDENCY_PROXY_PORT)/repository/apt-debian
+docker-build docker-build-local: export SERVICEGEN_APT_DEBIAN_SECURITY_URL := http://$(SERVICEGEN_DEPENDENCY_PROXY_DOCKER_HOST):$(SERVICEGEN_DEPENDENCY_PROXY_PORT)/repository/apt-debian-security
 endif
 
 .PHONY: all build clean run test lint lint-fix act gen-proto service_build service_build_linux service_build_linux_debug fmt-proto docker-build docker-build-local hooks
@@ -71,16 +78,18 @@ docker-build:
 	@if [ -n "$(PROJECT_DIR)" ] && [ -f "$(PROJECT_DIR)/go.work" ]; then \
 		docker build -f "$(MODULE_DIR)/Dockerfile" \
 			$(SERVICEGEN_DEPENDENCY_PROXY_DOCKER_ARGS) \
-			--build-context servicelib-source="$(SERVICELIB_SOURCE_CONTEXT)" \
+			--build-context servicelib-source="$(GOSERVICELIB_SOURCE_CONTEXT)" \
 			--build-arg GOPROXY="$${GOPROXY:-https://proxy.golang.org,direct}" \
+			--build-arg GOSUMDB="$${GOSUMDB:-sum.golang.org}" \
 			--build-arg SERVICE_DIR="$(SERVICE_NAME)" \
 			--build-arg SERVICEGEN_RUNTIME_STRIP="$(SERVICEGEN_RUNTIME_STRIP)" \
 			-t $(SERVICE_NAME):latest "$(PROJECT_DIR)"; \
 	else \
 		docker build \
 			$(SERVICEGEN_DEPENDENCY_PROXY_DOCKER_ARGS) \
-			--build-context servicelib-source="$(SERVICELIB_SOURCE_CONTEXT)" \
+			--build-context servicelib-source="$(GOSERVICELIB_SOURCE_CONTEXT)" \
 			--build-arg GOPROXY="$${GOPROXY:-https://proxy.golang.org,direct}" \
+			--build-arg GOSUMDB="$${GOSUMDB:-sum.golang.org}" \
 			--build-arg SERVICEGEN_RUNTIME_STRIP="$(SERVICEGEN_RUNTIME_STRIP)" \
 			-t $(SERVICE_NAME):latest .; \
 	fi
@@ -91,7 +100,12 @@ docker-build-local:
 	else \
 		$(MAKE) service_build_linux PROJECT_DIR="$(PROJECT_DIR)" BIN_DIR="$(BIN_DIR)"; \
 	fi
-	docker build -f Dockerfile.local -t $(SERVICE_NAME):latest ..
+	docker build -f Dockerfile.local \
+		--build-arg GOPROXY="$${GOPROXY:-https://proxy.golang.org,direct}" \
+		--build-arg GOSUMDB="$${GOSUMDB:-sum.golang.org}" \
+		--build-arg SERVICEGEN_APT_DEBIAN_URL="$${SERVICEGEN_APT_DEBIAN_URL:-}" \
+		--build-arg SERVICEGEN_APT_DEBIAN_SECURITY_URL="$${SERVICEGEN_APT_DEBIAN_SECURITY_URL:-}" \
+		-t $(SERVICE_NAME):latest ..
 
 test:
 	go test ./...
@@ -110,7 +124,7 @@ $(GOLANGCI_LINT):
 $(ACT):
 	@mkdir -p $(TOOLS_DIR)
 	@echo "Downloading act $(ACT_VERSION)..."
-	@curl -sSL "https://github.com/nektos/act/releases/download/$(ACT_VERSION)/act_$(OS)_$(ARCH).tar.gz" | tar -xz -C $(TOOLS_DIR) act
+	@curl -sSL "$(SERVICEGEN_GITHUB_RAW_URL)/nektos/act/releases/download/$(ACT_VERSION)/act_$(OS)_$(ARCH).tar.gz" | tar -xz -C $(TOOLS_DIR) act
 
 act: $(ACT) ## Run GitHub Actions locally via act (requires Docker)
 	$(ACT) push
