@@ -13,16 +13,18 @@ ENV GOPROXY=${GOPROXY}
 ARG GOSUMDB=sum.golang.org
 ENV GOSUMDB=${GOSUMDB}
 COPY --from=servicelib-source / /tmp/servicelib-source
-RUN source_dir=/tmp/servicelib-source; \
-    if [ -f "$source_dir/context" ]; then \
+RUN set -eu; \
+    source_dir=/tmp/servicelib-source; \
+    archive=$(find "$source_dir" -mindepth 1 -maxdepth 1 -type f \( -name context -o -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar.xz' \) -print -quit); \
+    if [ -n "$archive" ]; then \
       mkdir -p /tmp/servicelib-archive; \
-      tar -xf "$source_dir/context" -C /tmp/servicelib-archive; \
+      tar -xf "$archive" -C /tmp/servicelib-archive; \
       source_dir=/tmp/servicelib-archive; \
     fi; \
-    if [ ! -f "$source_dir/go.mod" ]; then \
-      source_dir=$(find "$source_dir" -mindepth 1 -maxdepth 1 -type d | head -n 1); \
-    fi; \
-    test -n "$source_dir" && test -f "$source_dir/go.mod"; \
+    manifest=$(find "$source_dir" -mindepth 1 -maxdepth 2 -type f -name go.mod -print -quit); \
+    if [ -z "$manifest" ]; then echo "servicelib source context has no go.mod" >&2; exit 1; fi; \
+    source_dir=${manifest%/go.mod}; \
+    if [ -z "$source_dir" ] || [ "$source_dir" = "/" ]; then echo "unsafe servicelib source directory" >&2; exit 1; fi; \
     mkdir -p /servicelib; \
     cp -a "$source_dir/." /servicelib/
 COPY . /workspace
