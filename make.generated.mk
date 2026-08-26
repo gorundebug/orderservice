@@ -11,11 +11,11 @@ BUF := $(TOOLS_DIR)/buf
 PROTOC ?= $(TOOLS_DIR)/protoc
 GOLANGCI_LINT ?= $(TOOLS_DIR)/golangci-lint
 GOLANGCI_LINT_VERSION := v1.64.8
-ACT_VERSION := v0.2.124
+ACT_VERSION := v0.2.134
 ACT := $(TOOLS_DIR)/act
 OS := $(shell uname -s)
 ARCH := $(shell uname -m)
-GOSERVICELIB_SOURCE_CONTEXT ?= https://github.com/gorundebug/servicelib.git#v0.2.12
+GOSERVICELIB_SOURCE_CONTEXT ?= https://github.com/gorundebug/servicelib.git\#v0.2.13
 SERVICEGEN_RUNTIME_STRIP ?= ON
 SERVICEGEN_GITHUB_RAW_URL ?= https://github.com
 
@@ -27,7 +27,12 @@ SERVICEGEN_DEPENDENCY_PROXY_DOCKER_ARGS := --add-host host.docker.internal:host-
 export GOPROXY := http://$(SERVICEGEN_DEPENDENCY_PROXY_HOST):$(SERVICEGEN_DEPENDENCY_PROXY_PORT)/repository/go-proxy/
 export GOSUMDB := off
 export SERVICEGEN_GITHUB_RAW_URL := http://$(SERVICEGEN_DEPENDENCY_PROXY_HOST):$(SERVICEGEN_DEPENDENCY_PROXY_PORT)/repository/github-raw
-export GOSERVICELIB_SOURCE_CONTEXT := http://$(SERVICEGEN_DEPENDENCY_PROXY_DOCKER_HOST):$(SERVICEGEN_DEPENDENCY_PROXY_PORT)/repository/github-raw/gorundebug/servicelib/archive/refs/tags/v0.2.12.tar.gz
+# Keep an explicit environment/command-line source context for local framework
+# development. Only replace the generated release default with the proxy URL.
+ifeq ($(origin GOSERVICELIB_SOURCE_CONTEXT),file)
+GOSERVICELIB_SOURCE_CONTEXT := http://$(SERVICEGEN_DEPENDENCY_PROXY_DOCKER_HOST):$(SERVICEGEN_DEPENDENCY_PROXY_PORT)/repository/github-raw/gorundebug/servicelib/archive/refs/tags/v0.2.13.tar.gz
+endif
+export GOSERVICELIB_SOURCE_CONTEXT
 docker-build docker-build-local: export GOPROXY := http://$(SERVICEGEN_DEPENDENCY_PROXY_DOCKER_HOST):$(SERVICEGEN_DEPENDENCY_PROXY_PORT)/repository/go-proxy/
 docker-build docker-build-local: export GOSUMDB := off
 docker-build docker-build-local: export SERVICEGEN_APT_DEBIAN_URL := http://$(SERVICEGEN_DEPENDENCY_PROXY_DOCKER_HOST):$(SERVICEGEN_DEPENDENCY_PROXY_PORT)/repository/apt-debian
@@ -81,6 +86,8 @@ docker-build:
 			--build-context servicelib-source="$(GOSERVICELIB_SOURCE_CONTEXT)" \
 			--build-arg GOPROXY="$${GOPROXY:-https://proxy.golang.org,direct}" \
 			--build-arg GOSUMDB="$${GOSUMDB:-sum.golang.org}" \
+			--build-arg SERVICEGEN_APT_DEBIAN_URL="$${SERVICEGEN_APT_DEBIAN_URL:-}" \
+			--build-arg SERVICEGEN_APT_DEBIAN_SECURITY_URL="$${SERVICEGEN_APT_DEBIAN_SECURITY_URL:-}" \
 			--build-arg SERVICE_DIR="$(SERVICE_NAME)" \
 			--build-arg SERVICEGEN_RUNTIME_STRIP="$(SERVICEGEN_RUNTIME_STRIP)" \
 			-t $(SERVICE_NAME):latest "$(PROJECT_DIR)"; \
@@ -90,6 +97,8 @@ docker-build:
 			--build-context servicelib-source="$(GOSERVICELIB_SOURCE_CONTEXT)" \
 			--build-arg GOPROXY="$${GOPROXY:-https://proxy.golang.org,direct}" \
 			--build-arg GOSUMDB="$${GOSUMDB:-sum.golang.org}" \
+			--build-arg SERVICEGEN_APT_DEBIAN_URL="$${SERVICEGEN_APT_DEBIAN_URL:-}" \
+			--build-arg SERVICEGEN_APT_DEBIAN_SECURITY_URL="$${SERVICEGEN_APT_DEBIAN_SECURITY_URL:-}" \
 			--build-arg SERVICEGEN_RUNTIME_STRIP="$(SERVICEGEN_RUNTIME_STRIP)" \
 			-t $(SERVICE_NAME):latest .; \
 	fi

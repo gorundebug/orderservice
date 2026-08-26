@@ -290,7 +290,7 @@ func (s *Service) buildRuntime(ctx context.Context) error {
 		return fmt.Errorf("init gRPC clients failed: %w", err)
 	}
 
-	if err := s.initFunctions(ctx, cfg); err != nil {
+	if err := s.initFunctions(ctx, cfg, s); err != nil {
 		return fmt.Errorf("init functions failed: %w", err)
 	}
 
@@ -298,17 +298,16 @@ func (s *Service) buildRuntime(ctx context.Context) error {
 		return fmt.Errorf("custom functions init failed: %w", err)
 	}
 
-	if err := s.initStreams(ctx); err != nil {
+	if err := s.initStreams(ctx, cfg, s); err != nil {
 		return fmt.Errorf("init streams failed: %w", err)
 	}
 
 	return nil
 }
 
-func (s *Service) initStreams(ctx context.Context) error {
-	cfg := s.Config()
+func (s *Service) initStreams(ctx context.Context, cfg *config.Config, env runtime.RuntimeEnvironment) error {
 	var err error
-	if s.streams.processOrder, err = transformation.Input[*types.Order, *types.OrderState, error](&cfg.Streams.ProcessOrder, s); err != nil {
+	if s.streams.processOrder, err = transformation.Input[*types.Order, *types.OrderState, error](&cfg.Streams.ProcessOrder, env); err != nil {
 		return err
 	}
 	if s.streams.splitPipeline, err = transformation.Split[*types.Order](&cfg.Streams.SplitPipeline, s.streams.processOrder); err != nil {
@@ -364,66 +363,150 @@ func (s *Service) HasCustomHTTPServer() bool {
 	return true
 }
 
-func (s *Service) initFunctions(ctx context.Context, cfg *config.Config) error {
+func (s *Service) initFunctions(ctx context.Context, cfg *config.Config, env runtime.RuntimeEnvironment) error {
 	eg, egCtx := errgroup.WithContext(ctx)
 	if s.makers.processOrderItemsMaker != nil {
 		eg.Go(func() error {
 			var err error
-			s.functions.processOrderItems, err = s.makers.processOrderItemsMaker(egCtx, &cfg.Streams.ProcessOrderItems, s)
+			s.functions.processOrderItems, err = s.makers.processOrderItemsMaker(egCtx, &cfg.Streams.ProcessOrderItems, env)
 			return err
 		})
 	}
 	if s.makers.mapOrderItemResultToOrderStateMaker != nil {
 		eg.Go(func() error {
 			var err error
-			s.functions.mapOrderItemResultToOrderState, err = s.makers.mapOrderItemResultToOrderStateMaker(egCtx, &cfg.Streams.MapOrderItemResultToOrderState, s)
+			s.functions.mapOrderItemResultToOrderState, err = s.makers.mapOrderItemResultToOrderStateMaker(egCtx, &cfg.Streams.MapOrderItemResultToOrderState, env)
 			return err
 		})
 	}
 	if s.makers.softDeadlineMaker != nil {
 		eg.Go(func() error {
 			var err error
-			s.functions.softDeadline, err = s.makers.softDeadlineMaker(egCtx, &cfg.Streams.SoftDeadline, s)
+			s.functions.softDeadline, err = s.makers.softDeadlineMaker(egCtx, &cfg.Streams.SoftDeadline, env)
 			return err
 		})
 	}
 	if s.makers.mapToOrderStateMaker != nil {
 		eg.Go(func() error {
 			var err error
-			s.functions.mapToOrderState, err = s.makers.mapToOrderStateMaker(egCtx, &cfg.Streams.MapToOrderState, s)
+			s.functions.mapToOrderState, err = s.makers.mapToOrderStateMaker(egCtx, &cfg.Streams.MapToOrderState, env)
 			return err
 		})
 	}
 	if s.makers.mapToOrderProcessedMaker != nil {
 		eg.Go(func() error {
 			var err error
-			s.functions.mapToOrderProcessed, err = s.makers.mapToOrderProcessedMaker(egCtx, &cfg.Streams.MapToOrderProcessed, s)
+			s.functions.mapToOrderProcessed, err = s.makers.mapToOrderProcessedMaker(egCtx, &cfg.Streams.MapToOrderProcessed, env)
 			return err
 		})
 	}
 	if s.makers.processOrderMaker != nil {
 		eg.Go(func() error {
 			var err error
-			s.functions.processOrder, err = s.makers.processOrderMaker(egCtx, &cfg.Endpoints.ProcessOrder, s)
+			s.functions.processOrder, err = s.makers.processOrderMaker(egCtx, &cfg.Endpoints.ProcessOrder, env)
 			return err
 		})
 	}
 	if s.makers.processOrderItemMaker != nil {
 		eg.Go(func() error {
 			var err error
-			s.functions.processOrderItem, err = s.makers.processOrderItemMaker(egCtx, &cfg.Endpoints.ProcessOrderItem, s)
+			s.functions.processOrderItem, err = s.makers.processOrderItemMaker(egCtx, &cfg.Endpoints.ProcessOrderItem, env)
 			return err
 		})
 	}
 	if s.makers.orderProcessedEndpointMaker != nil {
 		eg.Go(func() error {
 			var err error
-			s.functions.orderProcessedEndpoint, err = s.makers.orderProcessedEndpointMaker(egCtx, &cfg.Endpoints.OrderProcessed, s)
+			s.functions.orderProcessedEndpoint, err = s.makers.orderProcessedEndpointMaker(egCtx, &cfg.Endpoints.OrderProcessed, env)
 			return err
 		})
 	}
 	if err := eg.Wait(); err != nil {
 		return err
+	}
+	return nil
+}
+
+// buildWorkflowGraph constructs a fresh graph without creating process-owned
+// servers, clients, exporters, watchers or OS-backed executors.
+func (s *Service) buildWorkflowGraph(ctx context.Context, cfg *config.Config, env runtime.RuntimeEnvironment) error {
+	if err := s.initMakers(ctx); err != nil {
+		return fmt.Errorf("init Workflow makers failed: %w", err)
+	}
+	if err := s.customMakersInit(ctx); err != nil {
+		return fmt.Errorf("custom Workflow makers failed: %w", err)
+	}
+	if err := s.initWorkflowFunctions(ctx, cfg, env); err != nil {
+		return fmt.Errorf("init Workflow functions failed: %w", err)
+	}
+	if err := s.customFunctionsInit(ctx); err != nil {
+		return fmt.Errorf("custom Workflow functions failed: %w", err)
+	}
+	if err := s.initStreams(ctx, cfg, env); err != nil {
+		return fmt.Errorf("init Workflow streams failed: %w", err)
+	}
+	return nil
+}
+
+// Workflow function makers run in a stable generated order. The ordinary
+// service keeps initializer-group goroutines; a Temporal Workflow must not use
+// process goroutines during replayable graph construction.
+func (s *Service) initWorkflowFunctions(ctx context.Context, cfg *config.Config, env runtime.RuntimeEnvironment) error {
+	if s.makers.processOrderItemsMaker != nil {
+		value, err := s.makers.processOrderItemsMaker(ctx, &cfg.Streams.ProcessOrderItems, env)
+		if err != nil {
+			return err
+		}
+		s.functions.processOrderItems = value
+	}
+	if s.makers.mapOrderItemResultToOrderStateMaker != nil {
+		value, err := s.makers.mapOrderItemResultToOrderStateMaker(ctx, &cfg.Streams.MapOrderItemResultToOrderState, env)
+		if err != nil {
+			return err
+		}
+		s.functions.mapOrderItemResultToOrderState = value
+	}
+	if s.makers.softDeadlineMaker != nil {
+		value, err := s.makers.softDeadlineMaker(ctx, &cfg.Streams.SoftDeadline, env)
+		if err != nil {
+			return err
+		}
+		s.functions.softDeadline = value
+	}
+	if s.makers.mapToOrderStateMaker != nil {
+		value, err := s.makers.mapToOrderStateMaker(ctx, &cfg.Streams.MapToOrderState, env)
+		if err != nil {
+			return err
+		}
+		s.functions.mapToOrderState = value
+	}
+	if s.makers.mapToOrderProcessedMaker != nil {
+		value, err := s.makers.mapToOrderProcessedMaker(ctx, &cfg.Streams.MapToOrderProcessed, env)
+		if err != nil {
+			return err
+		}
+		s.functions.mapToOrderProcessed = value
+	}
+	if s.makers.processOrderMaker != nil {
+		value, err := s.makers.processOrderMaker(ctx, &cfg.Endpoints.ProcessOrder, env)
+		if err != nil {
+			return err
+		}
+		s.functions.processOrder = value
+	}
+	if s.makers.processOrderItemMaker != nil {
+		value, err := s.makers.processOrderItemMaker(ctx, &cfg.Endpoints.ProcessOrderItem, env)
+		if err != nil {
+			return err
+		}
+		s.functions.processOrderItem = value
+	}
+	if s.makers.orderProcessedEndpointMaker != nil {
+		value, err := s.makers.orderProcessedEndpointMaker(ctx, &cfg.Endpoints.OrderProcessed, env)
+		if err != nil {
+			return err
+		}
+		s.functions.orderProcessedEndpoint = value
 	}
 	return nil
 }
