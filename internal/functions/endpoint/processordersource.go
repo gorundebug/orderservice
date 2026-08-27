@@ -1,4 +1,4 @@
-package functions
+package endpoint
 
 import (
 	"context"
@@ -19,52 +19,52 @@ import (
 	"github.com/gorundebug/orderservice/internal/types"
 )
 
-// ProcessOrderType is the typed handler function for the ProcessOrder HTTP endpoint.
-type ProcessOrderType = datasourcehttp.HTTPHandler
+// ProcessOrderSourceType is the typed handler function for the ProcessOrderSource HTTP endpoint.
+type ProcessOrderSourceType = datasourcehttp.HTTPHandler
 
 // processOrderHandler is a type alias for the EndpointHandler generic instantiation used throughout this file.
-type processOrderHandler = datasourcehttp.EndpointHandler[ProcessOrderHandlerState, *processorder.ProcessOrderRequest, *processorder.ProcessOrderResponse, *types.Order, *types.OrderState, error]
+type processOrderHandler = datasourcehttp.EndpointHandler[ProcessOrderSourceHandlerState, *processorder.ProcessOrderRequest, *processorder.ProcessOrderResponse, *types.Order, *types.OrderState, error]
 
-var _ processOrderHandler = (*ProcessOrder)(nil)
+var _ processOrderHandler = (*ProcessOrderSource)(nil)
 
-func MakeEndpointConsumerProcessOrder(stream runtime.TypedInputStream[*types.Order, *types.OrderState, error], handler processOrderHandler) (runtime.Consumer[*types.Order], ProcessOrderType, error) {
-	return datasourcehttp.MakeNetHTTPEndpointConsumer[ProcessOrderHandlerState, *processorder.ProcessOrderRequest, *processorder.ProcessOrderResponse, *types.Order, *types.OrderState, error](stream, handler)
+func MakeEndpointConsumerProcessOrderSource(stream runtime.TypedInputStream[*types.Order, *types.OrderState, error], handler processOrderHandler) (runtime.Consumer[*types.Order], ProcessOrderSourceType, error) {
+	return datasourcehttp.MakeNetHTTPEndpointConsumer[ProcessOrderSourceHandlerState, *processorder.ProcessOrderRequest, *processorder.ProcessOrderResponse, *types.Order, *types.OrderState, error](stream, handler)
 }
 
-// ProcessOrderHandlerState holds per-request state created by BeginRequest for each incoming HTTP request.
-type ProcessOrderHandlerState struct {
+// ProcessOrderSourceHandlerState holds per-request state created by BeginRequest for each incoming HTTP request.
+type ProcessOrderSourceHandlerState struct {
 	req    *processorder.ProcessOrderRequest
 	cancel context.CancelFunc
 }
 
-// ProcessOrder
-type ProcessOrder struct {
+// ProcessOrderSource
+type ProcessOrderSource struct {
 	timeout time.Duration
 }
 
-func (ep *ProcessOrder) BeginRequest(ctx context.Context, _ datasourcehttp.StreamContext[*types.Order, *types.OrderState, error], data datasourcehttp.HandlerData) (context.Context, ProcessOrderHandlerState, error) {
+func (ep *ProcessOrderSource) BeginRequest(ctx context.Context, _ datasourcehttp.StreamContext[*types.Order, *types.OrderState, error], data datasourcehttp.HandlerData) (context.Context, ProcessOrderSourceHandlerState, error) {
 	var req processorder.ProcessOrderRequest
 	if err := json.NewDecoder(data.Request.Body).Decode(&req); err != nil {
 		http.Error(data.Writer, "invalid JSON body", http.StatusBadRequest)
-		return ctx, ProcessOrderHandlerState{}, err
+		return ctx, ProcessOrderSourceHandlerState{}, err
 	}
 	if len(req.Items) == 0 {
 		err := errors.New("items must not be empty")
 		http.Error(data.Writer, err.Error(), http.StatusBadRequest)
-		return ctx, ProcessOrderHandlerState{}, err
+		return ctx, ProcessOrderSourceHandlerState{}, err
 	}
 	for _, item := range req.Items {
 		if item.Quantity <= 0 {
 			err := errors.New("all quantities must be positive")
 			http.Error(data.Writer, err.Error(), http.StatusBadRequest)
-			return ctx, ProcessOrderHandlerState{}, err
+			return ctx, ProcessOrderSourceHandlerState{}, err
 		}
 	}
 	ctx, cancel := context.WithTimeout(ctx, ep.timeout)
-	return ctx, ProcessOrderHandlerState{req: &req, cancel: cancel}, nil
+	return ctx, ProcessOrderSourceHandlerState{req: &req, cancel: cancel}, nil
 }
 
-func (ep *ProcessOrder) ConsumeMessage(ctx context.Context, sc datasourcehttp.StreamContext[*types.Order, *types.OrderState, error], handlerState ProcessOrderHandlerState, data datasourcehttp.HandlerData, resultCtx datasourcehttp.ResultContext[ProcessOrderHandlerState, *processorder.ProcessOrderRequest, *processorder.ProcessOrderResponse, *types.Order, *types.OrderState, error]) error {
+func (ep *ProcessOrderSource) ConsumeMessage(ctx context.Context, sc datasourcehttp.StreamContext[*types.Order, *types.OrderState, error], handlerState ProcessOrderSourceHandlerState, data datasourcehttp.HandlerData, resultCtx datasourcehttp.ResultContext[ProcessOrderSourceHandlerState, *processorder.ProcessOrderRequest, *processorder.ProcessOrderResponse, *types.Order, *types.OrderState, error]) error {
 	orderID := data.Request.Header.Get("X-Request-ID")
 	if orderID == "" {
 		orderID = uuid.New().String()
@@ -104,7 +104,7 @@ func (ep *ProcessOrder) ConsumeMessage(ctx context.Context, sc datasourcehttp.St
 	var mu sync.Mutex
 	results := make([]*modeltypes.OrderItemResult, 0, len(items))
 	responseSent := false
-	resultCtx.SetResultCallback(orderID, func(ctx context.Context, sc datasourcehttp.StreamContext[*types.Order, *types.OrderState, error], _ ProcessOrderHandlerState, state *types.OrderState, data datasourcehttp.HandlerData) bool {
+	resultCtx.SetResultCallback(orderID, func(ctx context.Context, sc datasourcehttp.StreamContext[*types.Order, *types.OrderState, error], _ ProcessOrderSourceHandlerState, state *types.OrderState, data datasourcehttp.HandlerData) bool {
 		mu.Lock()
 		defer mu.Unlock()
 		if responseSent {
@@ -137,7 +137,7 @@ func (ep *ProcessOrder) ConsumeMessage(ctx context.Context, sc datasourcehttp.St
 			totalAmount = order.TotalAmount
 		}
 
-		resp := buildProcessOrderResponse(&types.OrderState{
+		resp := buildProcessOrderSourceResponse(&types.OrderState{
 			OrderID:        order.ID,
 			Status:         status,
 			ConfirmedItems: results,
@@ -158,18 +158,18 @@ func (ep *ProcessOrder) ConsumeMessage(ctx context.Context, sc datasourcehttp.St
 	return nil
 }
 
-func (ep *ProcessOrder) GetMessageID(_ context.Context, _ datasourcehttp.StreamContext[*types.Order, *types.OrderState, error], _ ProcessOrderHandlerState, value *types.OrderState) string {
+func (ep *ProcessOrderSource) GetMessageID(_ context.Context, _ datasourcehttp.StreamContext[*types.Order, *types.OrderState, error], _ ProcessOrderSourceHandlerState, value *types.OrderState) string {
 	return value.OrderID
 }
 
-func (ep *ProcessOrder) EndRequest(_ context.Context, _ datasourcehttp.StreamContext[*types.Order, *types.OrderState, error], err error, handlerState ProcessOrderHandlerState, data datasourcehttp.HandlerData) {
+func (ep *ProcessOrderSource) EndRequest(_ context.Context, _ datasourcehttp.StreamContext[*types.Order, *types.OrderState, error], err error, handlerState ProcessOrderSourceHandlerState, data datasourcehttp.HandlerData) {
 	handlerState.cancel()
 	if err != nil {
 		http.Error(data.Writer, "internal server error", http.StatusInternalServerError)
 	}
 }
 
-func buildProcessOrderResponse(state *types.OrderState) *processorder.ProcessOrderResponse {
+func buildProcessOrderSourceResponse(state *types.OrderState) *processorder.ProcessOrderResponse {
 	resp := &processorder.ProcessOrderResponse{
 		OrderId:     &state.OrderID,
 		Status:      &state.Status,
@@ -197,8 +197,8 @@ func buildProcessOrderResponse(state *types.OrderState) *processorder.ProcessOrd
 	return resp
 }
 
-// MakeProcessOrder implements the handler for the ProcessOrder HTTP source endpoint.
-func MakeProcessOrder(_ context.Context, _ environment.ServiceEnvironment, cfg *runtimecfg.HttpEndpointConfig) (*ProcessOrder, error) {
+// MakeProcessOrderSource implements the handler for the ProcessOrderSource HTTP source endpoint.
+func MakeProcessOrderSource(_ context.Context, _ environment.ServiceEnvironment, cfg *runtimecfg.HttpEndpointConfig) (*ProcessOrderSource, error) {
 	const defaultTimeout = 5 * time.Second
 	timeout := defaultTimeout
 	if v := cfg.GetProperty("timeout"); v != nil {
@@ -209,5 +209,5 @@ func MakeProcessOrder(_ context.Context, _ environment.ServiceEnvironment, cfg *
 			timeout = time.Duration(ms) * time.Millisecond
 		}
 	}
-	return &ProcessOrder{timeout: timeout}, nil
+	return &ProcessOrderSource{timeout: timeout}, nil
 }

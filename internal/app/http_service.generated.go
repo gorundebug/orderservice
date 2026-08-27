@@ -13,5 +13,5 @@ type HttpService struct {
 }
 
 func (s *HttpService) Processorder(w http.ResponseWriter, r *http.Request) {
-	s.service.handlers.processOrder(w, r)
+	s.service.handlers.endpointProcessOrderSource(w, r)
 }
