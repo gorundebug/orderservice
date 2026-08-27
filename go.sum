@@ -39,8 +39,8 @@ github.com/gorundebug/model v0.2.13 h1:3Yo6jvgKh9XtVpB0o6taoah3A2hJNPXD1Z7Qk4dEz
 github.com/gorundebug/model v0.2.13/go.mod h1:IX8Udk3PsSv6WzbI0QYi8+TdYqo3NIuGMhqVg1W1hfk=
 github.com/gorundebug/order_service_api v0.2.13 h1:Br2j4vqJFdaXEJOmZqafZ8y35tIkRkyI5rk9pzFv5sc=
 github.com/gorundebug/order_service_api v0.2.13/go.mod h1:zo2rY5RWjza7Ch/G8n/QY8/Qb8pww2VJQG/A45noTDk=
-github.com/gorundebug/servicelib v0.2.13 h1:s0/wfu721c6c7vMHQHi8Lgx5/yfMm3Gl6VC7wwPmBAQ=
-github.com/gorundebug/servicelib v0.2.13/go.mod h1:A6Kf5xjzzeGyJLtUJqnoQ0YC4xcIGPG6kB5nkZdCHfg=
+github.com/gorundebug/servicelib v0.2.14 h1:0oxi0HjQT40U82bctkYD+2zXxbhZ14rSHlFbes9/1Co=
+github.com/gorundebug/servicelib v0.2.14/go.mod h1:A6Kf5xjzzeGyJLtUJqnoQ0YC4xcIGPG6kB5nkZdCHfg=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 h1:5VipnvEpbqr2gA2VbM+nYVbkIF28c5ZQfqCBQ5g2xfk=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0/go.mod h1:Hyl3n6Twe1hvtd9XUXDec4pTvgMSEixRuQKPTMH2bNs=
 github.com/hashicorp/go-uuid v1.0.2/go.mod h1:6SBZvOh/SIDV7/2o3Jml5SYk/TvGqwFJ/bN7x4byOro=

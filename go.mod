@@ -7,7 +7,7 @@ require (
 	github.com/gorundebug/inventory_service_api v0.2.13
 	github.com/gorundebug/model v0.2.13
 	github.com/gorundebug/order_service_api v0.2.13
-	github.com/gorundebug/servicelib v0.2.13
+	github.com/gorundebug/servicelib v0.2.14
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/sync v0.22.0
 	google.golang.org/grpc v1.83.2
