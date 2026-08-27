@@ -4,10 +4,10 @@ go 1.25.4
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/gorundebug/inventory_service_api v0.2.19
-	github.com/gorundebug/model v0.2.19
-	github.com/gorundebug/order_service_api v0.2.19
-	github.com/gorundebug/servicelib v0.2.20
+	github.com/gorundebug/inventory_service_api v0.2.21
+	github.com/gorundebug/model v0.2.21
+	github.com/gorundebug/order_service_api v0.2.21
+	github.com/gorundebug/servicelib v0.2.21
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/sync v0.22.0
 	google.golang.org/grpc v1.83.2

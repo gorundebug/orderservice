@@ -12,7 +12,7 @@ ARG SERVICEGEN_GITHUB_RAW_URL=https://github.com
 ENV SERVICEGEN_GITHUB_RAW_URL=${SERVICEGEN_GITHUB_RAW_URL}
 COPY dependency-download-mirrors.generated.env /etc/servicegen/dependency-download-mirrors.generated.env
 COPY dependency-download-mirrors.env /etc/servicegen/dependency-download-mirrors.env
-COPY scripts/dependency-download-env.generated.sh /usr/local/bin/servicegen-download-env
+COPY dependency-download-env.generated.sh /usr/local/bin/servicegen-download-env
 SHELL ["/usr/local/bin/servicegen-download-env", "/bin/sh", "-c"]
 ARG GOPROXY=https://proxy.golang.org,direct
 ENV GOPROXY=${GOPROXY}
