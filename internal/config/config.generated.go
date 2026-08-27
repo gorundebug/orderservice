@@ -713,23 +713,24 @@ func MakeConfig() *Config {
 				From: processOrderStreamID,
 				To:   splitPipelineStreamID,
 				CallSemantics: &cfg.CallSemanticsGroup{
-					FunctionCall: &cfg.FunctionCallSemanticsConfig{},
+					PriorityTaskPool: &cfg.PriorityTaskPoolCallSemanticsConfig{
+						PoolName: "Default Pool",
+						Priority: 1,
+					},
 				},
 			},
 			SplitPipelineToProcessOrderItems: cfg.LinkConfig{
 				From: splitPipelineStreamID,
 				To:   processOrderItemsStreamID,
 				CallSemantics: &cfg.CallSemanticsGroup{
-					FunctionCall: &cfg.FunctionCallSemanticsConfig{},
+					ParallelCall: &cfg.ParallelCallSemanticsConfig{},
 				},
 			},
 			SplitPipelineToSoftDeadline: cfg.LinkConfig{
 				From: splitPipelineStreamID,
 				To:   softDeadlineStreamID,
 				CallSemantics: &cfg.CallSemanticsGroup{
-					FunctionCall: &cfg.FunctionCallSemanticsConfig{
-						Async: true,
-					},
+					ParallelCall: &cfg.ParallelCallSemanticsConfig{},
 				},
 			},
 		},
