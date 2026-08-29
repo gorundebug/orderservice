@@ -18,7 +18,7 @@ ACT_VERSION := v0.2.144
 ACT := $(TOOLS_DIR)/act
 OS := $(shell uname -s)
 ARCH := $(shell uname -m)
-GOSERVICELIB_SOURCE_CONTEXT ?= https://github.com/gorundebug/servicelib.git\#v0.2.30
+GOSERVICELIB_SOURCE_CONTEXT ?= https://github.com/gorundebug/servicelib.git\#v0.2.31
 RUNTIME_STRIP ?= ON
 DEPENDENCY_DOWNLOAD_ENV := $(or $(wildcard $(abspath ./dependency-download-env.generated.sh)),$(wildcard $(abspath ../dependency-download-env.generated.sh)),/bin/sh)
 SHELL := $(DEPENDENCY_DOWNLOAD_ENV)
@@ -44,13 +44,13 @@ ifneq ($(strip $(DEPENDENCY_PROXY_DIR)),)
 # Keep an explicit environment/command-line source context for local framework
 # development. Only replace the generated release default with the proxy URL.
 ifeq ($(origin GOSERVICELIB_SOURCE_CONTEXT),file)
-GOSERVICELIB_SOURCE_CONTEXT := $(DEPENDENCY_PROXY_DOCKER_BASE)/github-raw/gorundebug/servicelib/archive/refs/tags/v0.2.30.tar.gz
+GOSERVICELIB_SOURCE_CONTEXT := $(DEPENDENCY_PROXY_DOCKER_BASE)/github-raw/gorundebug/servicelib/archive/refs/tags/v0.2.31.tar.gz
 endif
 export GOSERVICELIB_SOURCE_CONTEXT
 ifneq ($(strip $(USE_LOCAL_MODULES)),1)
-export INVENTORY_SERVICE_API_SOURCE_CONTEXT := $(DEPENDENCY_GIT_MIRROR_DOCKER_BASE)/github.com/gorundebug/inventory_service_api.git\#v0.2.30
-export MODEL_GO_SOURCE_CONTEXT := $(DEPENDENCY_GIT_MIRROR_DOCKER_BASE)/github.com/gorundebug/model_go.git\#v0.2.30
-export ORDER_SERVICE_API_SOURCE_CONTEXT := $(DEPENDENCY_GIT_MIRROR_DOCKER_BASE)/github.com/gorundebug/order_service_api.git\#v0.2.30
+export INVENTORY_SERVICE_API_SOURCE_CONTEXT := $(DEPENDENCY_GIT_MIRROR_DOCKER_BASE)/github.com/gorundebug/inventory_service_api.git\#v0.2.31
+export MODEL_GO_SOURCE_CONTEXT := $(DEPENDENCY_GIT_MIRROR_DOCKER_BASE)/github.com/gorundebug/model_go.git\#v0.2.31
+export ORDER_SERVICE_API_SOURCE_CONTEXT := $(DEPENDENCY_GIT_MIRROR_DOCKER_BASE)/github.com/gorundebug/order_service_api.git\#v0.2.31
 endif
 endif
 
