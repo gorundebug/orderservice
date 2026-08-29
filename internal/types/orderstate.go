@@ -3,7 +3,7 @@ package types
 import (
 	"time"
 
-	modeltypes "github.com/gorundebug/model/pkg/types"
+	modeltypes "github.com/gorundebug/model_go/pkg/types"
 )
 
 // Current processing state of an order, returned to the HTTP caller. Fields: OrderID string, Status string (CONFIRMED

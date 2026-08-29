@@ -18,7 +18,7 @@ ACT_VERSION := v0.2.144
 ACT := $(TOOLS_DIR)/act
 OS := $(shell uname -s)
 ARCH := $(shell uname -m)
-GOSERVICELIB_SOURCE_CONTEXT ?= https://github.com/gorundebug/servicelib.git\#v0.2.27
+GOSERVICELIB_SOURCE_CONTEXT ?= https://github.com/gorundebug/servicelib.git\#v0.2.28
 RUNTIME_STRIP ?= ON
 DEPENDENCY_DOWNLOAD_ENV := $(or $(wildcard $(abspath ./dependency-download-env.generated.sh)),$(wildcard $(abspath ../dependency-download-env.generated.sh)),/bin/sh)
 SHELL := $(DEPENDENCY_DOWNLOAD_ENV)
@@ -28,11 +28,15 @@ export
 DEPENDENCY_DOCKER_TARGETS := docker-build docker-up docker-build-dev docker-up-dev debug
 include dependency-proxy.generated.mk
 
+USE_LOCAL_MODULES ?= 0
+DEBUG_PORT ?= 2345
+export DEBUG_PORT
+
 export GOWORK := off
 ifeq ($(strip $(USE_LOCAL_MODULES)),1)
 export GOWORK := $(abspath ../go.work)
 export INVENTORY_SERVICE_API_SOURCE_CONTEXT := ../inventory_service_api
-export MODEL_SOURCE_CONTEXT := ../model
+export MODEL_GO_SOURCE_CONTEXT := ../model_go
 export ORDER_SERVICE_API_SOURCE_CONTEXT := ../order_service_api
 endif
 
@@ -40,22 +44,22 @@ ifneq ($(strip $(DEPENDENCY_PROXY_DIR)),)
 # Keep an explicit environment/command-line source context for local framework
 # development. Only replace the generated release default with the proxy URL.
 ifeq ($(origin GOSERVICELIB_SOURCE_CONTEXT),file)
-GOSERVICELIB_SOURCE_CONTEXT := $(DEPENDENCY_PROXY_DOCKER_BASE)/github-raw/gorundebug/servicelib/archive/refs/tags/v0.2.27.tar.gz
+GOSERVICELIB_SOURCE_CONTEXT := $(DEPENDENCY_PROXY_DOCKER_BASE)/github-raw/gorundebug/servicelib/archive/refs/tags/v0.2.28.tar.gz
 endif
 export GOSERVICELIB_SOURCE_CONTEXT
 ifneq ($(strip $(USE_LOCAL_MODULES)),1)
 export INVENTORY_SERVICE_API_SOURCE_CONTEXT := $(DEPENDENCY_GIT_MIRROR_DOCKER_BASE)/github.com/gorundebug/inventory_service_api.git\#v0.2.14
-export MODEL_SOURCE_CONTEXT := $(DEPENDENCY_GIT_MIRROR_DOCKER_BASE)/github.com/gorundebug/model.git\#v0.2.14
+export MODEL_GO_SOURCE_CONTEXT := $(DEPENDENCY_GIT_MIRROR_DOCKER_BASE)/github.com/gorundebug/model_go.git\#v0.2.14
 export ORDER_SERVICE_API_SOURCE_CONTEXT := $(DEPENDENCY_GIT_MIRROR_DOCKER_BASE)/github.com/gorundebug/order_service_api.git\#v0.2.14
 endif
 endif
 
 .PHONY: all build clean run test lint lint-fix act gen-proto service_build service_build_linux fmt-proto \
-	docker-build docker-build-dev docker-up docker-up-dev debug docker-down docker-down-dev hooks
+	docker-build docker-build-dev docker-up docker-up-dev debug docker-down docker-down-dev hooks help
 
 all: build
 
-build: gen-proto service_build
+build: gen-proto service_build ## [host] Generate owned bindings and build the service
 
 service_build:
 	@echo "Building $(SERVICE_NAME)..."
@@ -86,7 +90,7 @@ fmt-proto:
 		$(BUF) format -w $$protofile; \
 	done
 
-docker-build:
+docker-build: ## [Docker] Build the autonomous copied-source runtime image
 	@$(COMPOSE) build $(SERVICE_NAME)
 
 docker-build-dev:
@@ -98,7 +102,7 @@ docker-up: docker-build
 docker-up-dev: docker-build-dev
 	@DEBUG=0 $(COMPOSE_DEV) up -d --no-build --force-recreate $(SERVICE_NAME)
 
-debug: docker-build-dev
+debug: docker-build-dev ## Start Delve on host port $(DEBUG_PORT), container port 2345
 	@DEBUG=1 $(COMPOSE_DEV) up -d --no-build --force-recreate $(SERVICE_NAME)
 
 docker-down:
@@ -124,7 +128,7 @@ $(GOLANGCI_LINT):
 $(ACT):
 	@mkdir -p $(TOOLS_DIR)
 	@echo "Downloading act $(ACT_VERSION)..."
-	@curl -sSL "$(DEPENDENCY_GITHUB_RAW_URL)/nektos/act/releases/download/$(ACT_VERSION)/act_$(OS)_$(ARCH).tar.gz" | tar -xz -C $(TOOLS_DIR) act
+	@curl --fail --location --silent --show-error --connect-timeout 15 --speed-limit 1024 --speed-time 60 --retry 8 --retry-delay 2 --retry-max-time 600 --retry-all-errors "$(DEPENDENCY_GITHUB_RAW_URL)/nektos/act/releases/download/$(ACT_VERSION)/act_$(OS)_$(ARCH).tar.gz" | tar -xz -C $(TOOLS_DIR) act
 
 act: $(ACT) ## Run GitHub Actions locally via act (requires Docker)
 	$(ACT) push
@@ -138,3 +142,7 @@ hooks: ## Install git hooks (pre-commit: lint, pre-push: test)
 	@cp scripts/pre-push.generated.sh .git/hooks/pre-push
 	@chmod +x .git/hooks/pre-push
 	@echo "Git hooks installed."
+
+help: ## Show this help
+	@grep -hE '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-24s %s\n", $$1, $$2}'

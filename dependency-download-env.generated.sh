@@ -3,6 +3,7 @@
 set -eu
 
 retry_command=0
+retry_default_attempts=8
 if [ "${1:-}" = "--retry" ]; then
   retry_command=1
   shift
@@ -12,6 +13,22 @@ fi
 # Docker passes the real shell explicitly through its JSON SHELL instruction.
 if [ "${1:-}" = "-c" ]; then
   set -- /bin/sh "$@"
+fi
+
+# APT metadata and package files may change between `apt-get update` and
+# `apt-get install` on an upstream mirror. Retry the complete transaction so a
+# failed install refreshes the index from the same configured source. Keep this
+# policy here so every generated language and Docker stage behaves alike.
+if [ "$retry_command" -eq 0 ] \
+    && [ "${1:-}" = "/bin/sh" ] \
+    && [ "${2:-}" = "-c" ]; then
+  case "${3:-}" in
+    *"apt-get update"*) retry_command=1 ;;
+    *"pnpm install"*) retry_command=1 ;;
+    *"docker build "*) retry_command=1; retry_default_attempts=3 ;;
+    *"docker buildx build "*) retry_command=1; retry_default_attempts=3 ;;
+    *"docker compose "*" build"*) retry_command=1; retry_default_attempts=3 ;;
+  esac
 fi
 
 # Values from the user-owned override file take precedence over the generated
@@ -51,7 +68,7 @@ if [ "$retry_command" -eq 0 ]; then
 fi
 
 attempt=1
-max_attempts=${DEPENDENCY_COMMAND_RETRY_ATTEMPTS:-8}
+max_attempts=${DEPENDENCY_COMMAND_RETRY_ATTEMPTS:-$retry_default_attempts}
 retry_delay=${DEPENDENCY_COMMAND_RETRY_DELAY_SECONDS:-5}
 while :; do
   if env "$@"; then

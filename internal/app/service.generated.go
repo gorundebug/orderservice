@@ -33,8 +33,8 @@ import (
 
 	"github.com/gorundebug/inventory_service_api/pkg/generated/proto/inventoryserviceapi"
 	"github.com/gorundebug/inventory_service_api/pkg/generated/proto/inventoryserviceapi/processorderitem"
-	serdes2 "github.com/gorundebug/model/pkg/serdes"
-	types2 "github.com/gorundebug/model/pkg/types"
+	serdes2 "github.com/gorundebug/model_go/pkg/serdes"
+	types2 "github.com/gorundebug/model_go/pkg/types"
 	"github.com/gorundebug/order_service_api/pkg/generated/openapi/orderserviceapi"
 	"github.com/gorundebug/orderservice/internal/config"
 	"github.com/gorundebug/orderservice/internal/functions/endpoint"

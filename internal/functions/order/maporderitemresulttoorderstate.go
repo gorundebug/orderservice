@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	types2 "github.com/gorundebug/model/pkg/types"
+	types2 "github.com/gorundebug/model_go/pkg/types"
 	"github.com/gorundebug/orderservice/internal/types"
 
 	"github.com/gorundebug/servicelib/runtime"

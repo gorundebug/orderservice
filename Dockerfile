@@ -3,7 +3,7 @@ ARG DEPENDENCY_DOCKER_REGISTRY=docker.io
 # Stage 1: Build
 FROM servicelib-source AS servicelib-source
 FROM module-inventory_service_api-source AS module-inventory_service_api-source
-FROM module-model-source AS module-model-source
+FROM module-model_go-source AS module-model_go-source
 FROM module-order_service_api-source AS module-order_service_api-source
 
 FROM ${DEPENDENCY_DOCKER_REGISTRY}/library/golang:1.25-bookworm AS builder
@@ -44,7 +44,7 @@ RUN --mount=type=cache,id=servicegen-go-tool-apt-lists-${TARGETARCH},target=/var
          arm64) protoc_arch=aarch_64 ;; \
          *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
        esac \
-    && curl --fail --location --silent --show-error \
+    && curl --fail --location --silent --show-error --connect-timeout 15 --speed-limit 1024 --speed-time 60 --retry 8 --retry-delay 2 --retry-max-time 600 --retry-all-errors \
        "${DEPENDENCY_GITHUB_RAW_URL}/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-${protoc_arch}.zip" \
        --output /tmp/protoc.zip \
     && unzip -q /tmp/protoc.zip bin/protoc -d /usr/local \
@@ -75,12 +75,12 @@ RUN set -eu; source_dir=/tmp/module-inventory_service_api-source; \
     if [ ! -f "$manifest" ]; then manifest=$(find "$source_dir" -mindepth 2 -maxdepth 2 -type f -name go.mod -print -quit); fi; \
     if [ -z "$manifest" ]; then echo "module context github.com/gorundebug/inventory_service_api has no go.mod" >&2; exit 1; fi; \
     source_dir=${manifest%/go.mod}; mkdir -p /modules/inventory_service_api; cp -a "$source_dir/." /modules/inventory_service_api/
-COPY --from=module-model-source / /tmp/module-model-source
-RUN set -eu; source_dir=/tmp/module-model-source; \
+COPY --from=module-model_go-source / /tmp/module-model_go-source
+RUN set -eu; source_dir=/tmp/module-model_go-source; \
     manifest="$source_dir/go.mod"; \
     if [ ! -f "$manifest" ]; then manifest=$(find "$source_dir" -mindepth 2 -maxdepth 2 -type f -name go.mod -print -quit); fi; \
-    if [ -z "$manifest" ]; then echo "module context github.com/gorundebug/model has no go.mod" >&2; exit 1; fi; \
-    source_dir=${manifest%/go.mod}; mkdir -p /modules/model; cp -a "$source_dir/." /modules/model/
+    if [ -z "$manifest" ]; then echo "module context github.com/gorundebug/model_go has no go.mod" >&2; exit 1; fi; \
+    source_dir=${manifest%/go.mod}; mkdir -p /modules/model_go; cp -a "$source_dir/." /modules/model_go/
 COPY --from=module-order_service_api-source / /tmp/module-order_service_api-source
 RUN set -eu; source_dir=/tmp/module-order_service_api-source; \
     manifest="$source_dir/go.mod"; \
@@ -98,12 +98,12 @@ COPY . /workspace
 WORKDIR /workspace
 RUN go mod edit -replace github.com/gorundebug/servicelib=/servicelib \
     && go mod edit -replace github.com/gorundebug/inventory_service_api=/modules/inventory_service_api \
-    && go mod edit -replace github.com/gorundebug/model=/modules/model \
+    && go mod edit -replace github.com/gorundebug/model_go=/modules/model_go \
     && go mod edit -replace github.com/gorundebug/order_service_api=/modules/order_service_api \
     && true
 RUN make -f make.generated.mk gen-proto TOOLS_DIR=/usr/local/bin PROTOC=/usr/local/bin/protoc
 RUN --mount=type=cache,id=servicegen-go-mod-v1-${TARGETARCH},target=/go/pkg/mod,sharing=locked \
-    go mod download
+    go mod download all
 
 # Source-mounted local development stops at this stage. The ordinary
 # docker-build path continues in compiler and copies only the resulting binary
@@ -112,6 +112,9 @@ FROM builder AS development
 RUN servicegen-download-env --retry go install github.com/go-delve/delve/cmd/dlv@v1.25.2
 
 FROM builder AS compiler
+# The generated source tree intentionally contains no environment-specific
+# go.sum. Resolve the local source-context graph only inside this disposable
+# builder layer; the user's checked-out go.mod is never mutated.
 RUN --mount=type=cache,id=servicegen-go-mod-v1-${TARGETARCH},target=/go/pkg/mod,sharing=locked \
     --mount=type=cache,id=servicegen-go-build-v1-${TARGETARCH},target=/root/.cache/go-build,sharing=locked \
     if [ "${RUNTIME_STRIP}" = "ON" ]; then \
@@ -119,7 +122,7 @@ RUN --mount=type=cache,id=servicegen-go-mod-v1-${TARGETARCH},target=/go/pkg/mod,
     else \
       GO_LINKER_FLAGS=""; \
     fi \
-    && CGO_ENABLED=0 GOOS=linux go build -ldflags="${GO_LINKER_FLAGS}" -o /app/service ./cmd/service/main.go
+    && CGO_ENABLED=0 GOOS=linux go build -mod=mod -ldflags="${GO_LINKER_FLAGS}" -o /app/service ./cmd/service/main.go
 
 # Stage 2: Runtime
 FROM ${DEPENDENCY_DOCKER_REGISTRY}/library/debian:bookworm-slim AS runtime
@@ -144,10 +147,7 @@ WORKDIR /app
 COPY --from=compiler /app/service .
 COPY ${SERVICE_DIR}/config/ ./config/
 
-EXPOSE 9091
-EXPOSE 9201
-
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO/dev/null http://localhost:9091/status || exit 1
+  CMD wget -qO/dev/null http://localhost:${ORDER_SERVICE_HTTP_PORT:-9091}/status || exit 1
 
 ENTRYPOINT ["./service", "-config", "./config/config.yaml", "-values", "./config/overrides.yaml"]

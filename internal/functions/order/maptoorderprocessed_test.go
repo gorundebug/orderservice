@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorundebug/model/pkg/types"
+	"github.com/gorundebug/model_go/pkg/types"
 	types2 "github.com/gorundebug/orderservice/internal/types"
 	"github.com/gorundebug/servicelib/runtime"
 	"github.com/stretchr/testify/assert"

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	modeltypes "github.com/gorundebug/model/pkg/types"
+	modeltypes "github.com/gorundebug/model_go/pkg/types"
 	datasourcehttp "github.com/gorundebug/servicelib/datasource/http"
 	"github.com/gorundebug/servicelib/runtime"
 	runtimecfg "github.com/gorundebug/servicelib/runtime/config"

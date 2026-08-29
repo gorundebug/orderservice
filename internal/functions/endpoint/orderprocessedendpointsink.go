@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/gorundebug/model/pkg/types"
+	"github.com/gorundebug/model_go/pkg/types"
 	datasinkkafka "github.com/gorundebug/servicelib/datasink/kafka"
 	"github.com/gorundebug/servicelib/runtime"
 	runtimecfg "github.com/gorundebug/servicelib/runtime/config"

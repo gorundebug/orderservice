@@ -3,7 +3,7 @@ package types
 import (
 	"time"
 
-	modeltypes "github.com/gorundebug/model/pkg/types"
+	modeltypes "github.com/gorundebug/model_go/pkg/types"
 )
 
 // E-commerce order submitted by a customer. Fields: ID string (UUID, set at HTTP ingress), CustomerID string, Items

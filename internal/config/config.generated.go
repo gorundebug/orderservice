@@ -744,7 +744,7 @@ func MakeConfig() *Config {
 			},
 			Model: cfg.ModuleConfig{
 				Name: "model",
-				Path: "github.com/gorundebug/model",
+				Path: "github.com/gorundebug/model_go",
 			},
 			OrderServiceApi: cfg.ModuleConfig{
 				Name: "order_service_api",
