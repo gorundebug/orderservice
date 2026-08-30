@@ -1,0 +1,6 @@
+services:
+  orderservice:
+    image: orderservice:race
+    restart: "no"
+    build:
+      target: race
