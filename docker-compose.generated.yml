@@ -16,10 +16,10 @@ services:
         DEPENDENCY_APT_DEBIAN_URL: ${DEPENDENCY_APT_DEBIAN_URL:-}
         DEPENDENCY_APT_DEBIAN_SECURITY_URL: ${DEPENDENCY_APT_DEBIAN_SECURITY_URL:-}
       additional_contexts:
-        servicelib-source: "${GOSERVICELIB_SOURCE_CONTEXT:-https://github.com/gorundebug/servicelib.git#v0.2.58}"
-        module-inventory_service_api-source: "${INVENTORY_SERVICE_API_SOURCE_CONTEXT:-https://github.com/gorundebug/inventory_service_api.git#v0.2.58}"
-        module-model_go-source: "${MODEL_GO_SOURCE_CONTEXT:-https://github.com/gorundebug/model_go.git#v0.2.58}"
-        module-order_service_api-source: "${ORDER_SERVICE_API_SOURCE_CONTEXT:-https://github.com/gorundebug/order_service_api.git#v0.2.58}"
+        servicelib-source: "${GOSERVICELIB_SOURCE_CONTEXT:-https://github.com/gorundebug/servicelib.git#v0.2.59}"
+        module-inventory_service_api-source: "${INVENTORY_SERVICE_API_SOURCE_CONTEXT:-https://github.com/gorundebug/inventory_service_api.git#v0.2.59}"
+        module-model_go-source: "${MODEL_GO_SOURCE_CONTEXT:-https://github.com/gorundebug/model_go.git#v0.2.59}"
+        module-order_service_api-source: "${ORDER_SERVICE_API_SOURCE_CONTEXT:-https://github.com/gorundebug/order_service_api.git#v0.2.59}"
     environment:
       - DEBUG=${DEBUG:-0}
       - ORDER_SERVICE_HTTP_PORT
