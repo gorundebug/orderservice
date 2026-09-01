@@ -589,6 +589,7 @@ func MakeConfig() *Config {
 				IdSource:            splitPipelineStreamID,
 				XPos:                -477,
 				YPos:                -444,
+				Duration:            1000,
 				FunctionPackage:     "order",
 				FunctionName:        "SoftDeadline",
 				FunctionDescription: "Trigger the timeout branch shortly before the request deadline, leaving the configured duration to assemble a response.\nWhen no request deadline exists, use the configured duration itself. Never wait past an existing deadline.\n",
