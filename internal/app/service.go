@@ -48,6 +48,12 @@ func (d *serviceDependencies) LogsEngine(ctx context.Context, env environment.Se
 	}
 }
 
+// DelayPool returns a custom delay pool implementation, or nil to use the default
+// time.AfterFunc-based pool (sync.Once guarantees fn is called exactly once on either timer or ctx cancel).
+func (d *serviceDependencies) DelayPool(_ context.Context, _ environment.ServiceEnvironment) (environment.DelayPool, error) {
+	return nil, nil
+}
+
 // TracingEngine creates the distributed tracing engine used by the service.
 // local/debug: pretty human-readable output with per-request opt-in via context.
 // staging/production: traces exported via OTLP.
@@ -58,12 +64,6 @@ func (d *serviceDependencies) TracingEngine(ctx context.Context, env environment
 	default: // local, debug, or unset
 		return telemetry.CreatePrettyTracingEngine(env, telemetry.WithContextSampler())
 	}
-}
-
-// DelayPool returns a custom delay pool implementation, or nil to use the default
-// goroutine-per-task pool (each Delay call spawns a goroutine that exits on ctx.Done()).
-func (d *serviceDependencies) DelayPool(_ context.Context, _ environment.ServiceEnvironment) (environment.DelayPool, error) {
-	return nil, nil
 }
 
 // getCustomSerde returns a custom serializer for the given type, or nil to fall
