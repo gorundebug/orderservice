@@ -485,7 +485,7 @@ func (s *Service) StartService(ctx context.Context) error {
 			if me := s.MetricsEngine(); me != nil {
 				handler = me.HTTPServerHandler(handler, runtime.ToSnakeCase(svcCfg.Name))
 			}
-			if te != nil {
+			if te != nil && te.Tracing() != nil {
 				inner := handler
 				handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					if r.Header.Get("X-Trace") != "" {
