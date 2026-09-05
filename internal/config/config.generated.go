@@ -714,9 +714,8 @@ func MakeConfig() *Config {
 				From: processOrderStreamID,
 				To:   splitPipelineStreamID,
 				CallSemantics: &cfg.CallSemanticsGroup{
-					PriorityTaskPool: &cfg.PriorityTaskPoolCallSemanticsConfig{
+					TaskPool: &cfg.TaskPoolCallSemanticsConfig{
 						PoolName: "Default Pool",
-						Priority: 1,
 					},
 				},
 			},
