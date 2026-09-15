@@ -21,6 +21,8 @@ type mockDelayStream struct {
 }
 
 func (m *mockDelayStream) GetName() string                                { return "test" }
+func (m *mockDelayStream) GetPipelineName() string                        { return "Order" }
+func (m *mockDelayStream) GetComponentName() string                       { return "test" }
 func (m *mockDelayStream) GetTransformationName() string                  { return "Delay" }
 func (m *mockDelayStream) GetTypeName() string                            { return "Order" }
 func (m *mockDelayStream) GetID() int                                     { return 0 }
