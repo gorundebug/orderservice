@@ -21,7 +21,6 @@ import (
 	log "github.com/gorundebug/servicelib/runtime/environment/log"
 	"github.com/gorundebug/servicelib/runtime/environment/tracing"
 	runtimeserde "github.com/gorundebug/servicelib/runtime/serde"
-	"github.com/gorundebug/servicelib/transformation"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/attributes"
@@ -32,72 +31,32 @@ import (
 	"google.golang.org/grpc/stats"
 
 	"github.com/gorundebug/inventory_service_api/pkg/generated/proto/inventoryserviceapi"
-	"github.com/gorundebug/inventory_service_api/pkg/generated/proto/inventoryserviceapi/processorderitem"
 	serdes2 "github.com/gorundebug/model_go/pkg/serdes"
 	types2 "github.com/gorundebug/model_go/pkg/types"
 	"github.com/gorundebug/order_service_api/pkg/generated/openapi/orderserviceapi"
 	"github.com/gorundebug/orderservice/internal/config"
-	"github.com/gorundebug/orderservice/internal/functions/endpoint"
-	"github.com/gorundebug/orderservice/internal/functions/order"
 	"github.com/gorundebug/orderservice/internal/serdes"
 	"github.com/gorundebug/orderservice/internal/types"
 )
 
 type serviceMakers struct {
-	//stream function makers
-	orderProcessOrderItemsMaker              func(ctx context.Context, cfg *runtimecfg.FlatMapStreamConfig, env environment.ServiceEnvironment) (*order.ProcessOrderItems, error)
-	orderMapOrderItemResultToOrderStateMaker func(ctx context.Context, cfg *runtimecfg.MapStreamConfig, env environment.ServiceEnvironment) (*order.MapOrderItemResultToOrderState, error)
-	orderSoftDeadlineMaker                   func(ctx context.Context, cfg *runtimecfg.DelayStreamConfig, env environment.ServiceEnvironment) (*order.SoftDeadline, error)
-	orderMapToOrderStateMaker                func(ctx context.Context, cfg *runtimecfg.MapStreamConfig, env environment.ServiceEnvironment) (*order.MapToOrderState, error)
-	orderMapToOrderProcessedMaker            func(ctx context.Context, cfg *runtimecfg.MapStreamConfig, env environment.ServiceEnvironment) (*order.MapToOrderProcessed, error)
-	//data source function makers
-	endpointProcessOrderSourceMaker func(ctx context.Context, cfg *runtimecfg.HttpEndpointConfig, env environment.ServiceEnvironment) (*endpoint.ProcessOrderSource, error)
-	//data sink function makers
-	endpointProcessOrderItemSinkMaker       func(ctx context.Context, cfg *runtimecfg.GrpcEndpointConfig, env environment.ServiceEnvironment) (*endpoint.ProcessOrderItemSink, error)
-	endpointOrderProcessedEndpointSinkMaker func(ctx context.Context, cfg *runtimecfg.KafkaEndpointConfig, env environment.ServiceEnvironment) (*endpoint.OrderProcessedEndpointSink, error)
+	orderPipelineMakers
 }
 
 type serviceFunctions struct {
-	//stream functions
-	orderProcessOrderItems              *order.ProcessOrderItems
-	orderMapOrderItemResultToOrderState *order.MapOrderItemResultToOrderState
-	orderSoftDeadline                   *order.SoftDeadline
-	orderMapToOrderState                *order.MapToOrderState
-	orderMapToOrderProcessed            *order.MapToOrderProcessed
-	//data source functions
-	endpointProcessOrderSource *endpoint.ProcessOrderSource
-	//data sink functions
-	endpointProcessOrderItemSink       *endpoint.ProcessOrderItemSink
-	endpointOrderProcessedEndpointSink *endpoint.OrderProcessedEndpointSink
+	orderPipelineFunctions
 }
 
 type serviceStreams struct {
-	//streams
-	processOrder                   runtime.TypedInputStream[*types.Order, *types.OrderState, error]
-	splitPipeline                  runtime.TypedSplitStream[*types.Order]
-	processOrderItems              runtime.TypedTransformConsumedStream[*types.Order, *types2.OrderItem]
-	processOrderItem               runtime.TypedSinkStreamWithResult[*types2.OrderItem, *types2.OrderItemResult, *types.OrderState]
-	processOrderItemError          runtime.TypedConsumedStream[*types.OrderState]
-	mapOrderItemResultToOrderState runtime.TypedTransformConsumedStream[*types2.OrderItemResult, *types.OrderState]
-	softDeadline                   runtime.TypedConsumedStream[*types.Order]
-	mapToOrderState                runtime.TypedTransformConsumedStream[*types.Order, *types.OrderState]
-	mergeResults                   runtime.TypedConsumedStream[*types.OrderState]
-	splitOrderResult               runtime.TypedSplitStream[*types.OrderState]
-	mapToOrderProcessed            runtime.TypedTransformConsumedStream[*types.OrderState, *types2.OrderProcessed]
-	publishOrderProcessed          runtime.TypedSinkStream[*types2.OrderProcessed, error]
+	orderPipelineStreams
 }
 
 type serviceHandlers struct {
-	//data source handlers
-	endpointProcessOrderSource endpoint.ProcessOrderSourceType
+	orderPipelineHandlers
 }
 
 type serviceDataConnectors struct {
-	//data sources
-	processOrder runtime.Consumer[*types.Order]
-	//data sinks
-	processOrderItemProcessOrderItem    runtime.Consumer[*types2.OrderItem]
-	publishOrderProcessedOrderProcessed runtime.Consumer[*types2.OrderProcessed]
+	orderPipelineDataConnectors
 }
 
 type Service struct {
@@ -225,46 +184,7 @@ func (s *Service) initMakers(ctx context.Context) error {
 			return conn, inventoryserviceapi.NewInventoryServiceApiClient(conn), nil
 		}
 	}
-	if s.makers.orderProcessOrderItemsMaker == nil {
-		s.makers.orderProcessOrderItemsMaker = func(ctx context.Context, cfg *runtimecfg.FlatMapStreamConfig, env environment.ServiceEnvironment) (*order.ProcessOrderItems, error) {
-			return order.MakeProcessOrderItems(ctx, env, cfg)
-		}
-	}
-	if s.makers.orderMapOrderItemResultToOrderStateMaker == nil {
-		s.makers.orderMapOrderItemResultToOrderStateMaker = func(ctx context.Context, cfg *runtimecfg.MapStreamConfig, env environment.ServiceEnvironment) (*order.MapOrderItemResultToOrderState, error) {
-			return order.MakeMapOrderItemResultToOrderState(ctx, env, cfg)
-		}
-	}
-	if s.makers.orderSoftDeadlineMaker == nil {
-		s.makers.orderSoftDeadlineMaker = func(ctx context.Context, cfg *runtimecfg.DelayStreamConfig, env environment.ServiceEnvironment) (*order.SoftDeadline, error) {
-			return order.MakeSoftDeadline(ctx, env, cfg)
-		}
-	}
-	if s.makers.orderMapToOrderStateMaker == nil {
-		s.makers.orderMapToOrderStateMaker = func(ctx context.Context, cfg *runtimecfg.MapStreamConfig, env environment.ServiceEnvironment) (*order.MapToOrderState, error) {
-			return order.MakeMapToOrderState(ctx, env, cfg)
-		}
-	}
-	if s.makers.orderMapToOrderProcessedMaker == nil {
-		s.makers.orderMapToOrderProcessedMaker = func(ctx context.Context, cfg *runtimecfg.MapStreamConfig, env environment.ServiceEnvironment) (*order.MapToOrderProcessed, error) {
-			return order.MakeMapToOrderProcessed(ctx, env, cfg)
-		}
-	}
-	if s.makers.endpointProcessOrderSourceMaker == nil {
-		s.makers.endpointProcessOrderSourceMaker = func(ctx context.Context, cfg *runtimecfg.HttpEndpointConfig, env environment.ServiceEnvironment) (*endpoint.ProcessOrderSource, error) {
-			return endpoint.MakeProcessOrderSource(ctx, env, cfg)
-		}
-	}
-	if s.makers.endpointProcessOrderItemSinkMaker == nil {
-		s.makers.endpointProcessOrderItemSinkMaker = func(ctx context.Context, cfg *runtimecfg.GrpcEndpointConfig, env environment.ServiceEnvironment) (*endpoint.ProcessOrderItemSink, error) {
-			return endpoint.MakeProcessOrderItemSink(ctx, env, cfg)
-		}
-	}
-	if s.makers.endpointOrderProcessedEndpointSinkMaker == nil {
-		s.makers.endpointOrderProcessedEndpointSinkMaker = func(ctx context.Context, cfg *runtimecfg.KafkaEndpointConfig, env environment.ServiceEnvironment) (*endpoint.OrderProcessedEndpointSink, error) {
-			return endpoint.MakeOrderProcessedEndpointSink(ctx, env, cfg)
-		}
-	}
+	s.initOrderMakers()
 
 	return nil
 }
@@ -308,52 +228,16 @@ func (s *Service) buildRuntime(ctx context.Context) error {
 
 func (s *Service) initStreams(ctx context.Context, cfg *config.Config, env runtime.RuntimeEnvironment) error {
 	var err error
-	if s.streams.processOrder, err = transformation.Input[*types.Order, *types.OrderState, error](&cfg.Streams.ProcessOrder, env); err != nil {
+	if err = s.initOrderStreams(ctx, cfg, env); err != nil {
 		return err
 	}
-	if s.streams.splitPipeline, err = transformation.Split[*types.Order](&cfg.Streams.SplitPipeline, s.streams.processOrder); err != nil {
+	if err = s.bindOrderStreams(); err != nil {
 		return err
 	}
-	if s.streams.processOrderItems, err = transformation.FlatMap[*types.Order, *types2.OrderItem](&cfg.Streams.ProcessOrderItems, s.streams.splitPipeline.AddStream(), s.functions.orderProcessOrderItems); err != nil {
+	if err = s.initOrderEndpoints(); err != nil {
 		return err
 	}
-	if s.streams.processOrderItem, err = transformation.SinkWithResult[*types2.OrderItem, *types2.OrderItemResult, *types.OrderState](&cfg.Streams.ProcessOrderItem, s.streams.processOrderItems); err != nil {
-		return err
-	}
-	s.streams.processOrderItemError = s.streams.processOrderItem.GetErrorStream()
-	if s.streams.mapOrderItemResultToOrderState, err = transformation.Map[*types2.OrderItemResult, *types.OrderState](&cfg.Streams.MapOrderItemResultToOrderState, s.streams.processOrderItem, s.functions.orderMapOrderItemResultToOrderState); err != nil {
-		return err
-	}
-	if s.streams.softDeadline, err = transformation.Delay[*types.Order](&cfg.Streams.SoftDeadline, s.streams.splitPipeline.AddStream(), s.functions.orderSoftDeadline); err != nil {
-		return err
-	}
-	if s.streams.mapToOrderState, err = transformation.Map[*types.Order, *types.OrderState](&cfg.Streams.MapToOrderState, s.streams.softDeadline, s.functions.orderMapToOrderState); err != nil {
-		return err
-	}
-	if s.streams.mergeResults, err = transformation.Merge[*types.OrderState](&cfg.Streams.MergeResults, s.streams.mapToOrderState, s.streams.mapOrderItemResultToOrderState, s.streams.processOrderItemError); err != nil {
-		return err
-	}
-	if s.streams.splitOrderResult, err = transformation.Split[*types.OrderState](&cfg.Streams.SplitOrderResult, s.streams.mergeResults); err != nil {
-		return err
-	}
-	if s.streams.mapToOrderProcessed, err = transformation.Map[*types.OrderState, *types2.OrderProcessed](&cfg.Streams.MapToOrderProcessed, s.streams.splitOrderResult.AddStream(), s.functions.orderMapToOrderProcessed); err != nil {
-		return err
-	}
-	if s.streams.publishOrderProcessed, err = transformation.Sink[*types2.OrderProcessed, error](&cfg.Streams.PublishOrderProcessed, s.streams.mapToOrderProcessed); err != nil {
-		return err
-	}
-	if err = s.streams.processOrder.SetSource(s.streams.splitOrderResult.AddStream()); err != nil {
-		return err
-	}
-	if s.dataConnectors.processOrder, s.handlers.endpointProcessOrderSource, err = endpoint.MakeEndpointConsumerProcessOrderSource(s.streams.processOrder, s.functions.endpointProcessOrderSource); err != nil {
-		return err
-	}
-	if s.dataConnectors.processOrderItemProcessOrderItem, err = endpoint.MakeEndpointConsumerProcessOrderItemSink(s.streams.processOrderItem, s.functions.endpointProcessOrderItemSink, func(ctx context.Context, req *processorderitem.ProcessOrderItemRequest) (*processorderitem.ProcessOrderItemResponse, error) {
-		return s.inventoryServiceApiGrpcClient.ProcessOrderItem(ctx, req)
-	}); err != nil {
-		return err
-	}
-	if s.dataConnectors.publishOrderProcessedOrderProcessed, err = endpoint.MakeEndpointConsumerOrderProcessedEndpointSink(s.streams.publishOrderProcessed, s.functions.endpointOrderProcessedEndpointSink); err != nil {
+	if err = s.postInitOrderStreams(); err != nil {
 		return err
 	}
 	_ = err
@@ -364,64 +248,13 @@ func (s *Service) HasCustomHTTPServer() bool {
 	return true
 }
 
+type pipelineMakerTaskGroup interface {
+	Go(func() error)
+}
+
 func (s *Service) initFunctions(ctx context.Context, cfg *config.Config, env runtime.RuntimeEnvironment) error {
 	eg, egCtx := errgroup.WithContext(ctx)
-	if s.makers.orderProcessOrderItemsMaker != nil {
-		eg.Go(func() error {
-			var err error
-			s.functions.orderProcessOrderItems, err = s.makers.orderProcessOrderItemsMaker(egCtx, &cfg.Streams.ProcessOrderItems, env)
-			return err
-		})
-	}
-	if s.makers.orderMapOrderItemResultToOrderStateMaker != nil {
-		eg.Go(func() error {
-			var err error
-			s.functions.orderMapOrderItemResultToOrderState, err = s.makers.orderMapOrderItemResultToOrderStateMaker(egCtx, &cfg.Streams.MapOrderItemResultToOrderState, env)
-			return err
-		})
-	}
-	if s.makers.orderSoftDeadlineMaker != nil {
-		eg.Go(func() error {
-			var err error
-			s.functions.orderSoftDeadline, err = s.makers.orderSoftDeadlineMaker(egCtx, &cfg.Streams.SoftDeadline, env)
-			return err
-		})
-	}
-	if s.makers.orderMapToOrderStateMaker != nil {
-		eg.Go(func() error {
-			var err error
-			s.functions.orderMapToOrderState, err = s.makers.orderMapToOrderStateMaker(egCtx, &cfg.Streams.MapToOrderState, env)
-			return err
-		})
-	}
-	if s.makers.orderMapToOrderProcessedMaker != nil {
-		eg.Go(func() error {
-			var err error
-			s.functions.orderMapToOrderProcessed, err = s.makers.orderMapToOrderProcessedMaker(egCtx, &cfg.Streams.MapToOrderProcessed, env)
-			return err
-		})
-	}
-	if s.makers.endpointProcessOrderSourceMaker != nil {
-		eg.Go(func() error {
-			var err error
-			s.functions.endpointProcessOrderSource, err = s.makers.endpointProcessOrderSourceMaker(egCtx, &cfg.Endpoints.ProcessOrder, env)
-			return err
-		})
-	}
-	if s.makers.endpointProcessOrderItemSinkMaker != nil {
-		eg.Go(func() error {
-			var err error
-			s.functions.endpointProcessOrderItemSink, err = s.makers.endpointProcessOrderItemSinkMaker(egCtx, &cfg.Endpoints.ProcessOrderItem, env)
-			return err
-		})
-	}
-	if s.makers.endpointOrderProcessedEndpointSinkMaker != nil {
-		eg.Go(func() error {
-			var err error
-			s.functions.endpointOrderProcessedEndpointSink, err = s.makers.endpointOrderProcessedEndpointSinkMaker(egCtx, &cfg.Endpoints.OrderProcessed, env)
-			return err
-		})
-	}
+	s.scheduleOrderFunctions(eg, egCtx, cfg, env)
 	if err := eg.Wait(); err != nil {
 		return err
 	}
