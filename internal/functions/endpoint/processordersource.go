@@ -12,7 +12,6 @@ import (
 	modeltypes "github.com/gorundebug/model_go/pkg/types"
 	datasourcehttp "github.com/gorundebug/servicelib/datasource/http"
 	"github.com/gorundebug/servicelib/runtime"
-	runtimecfg "github.com/gorundebug/servicelib/runtime/config"
 	"github.com/gorundebug/servicelib/runtime/environment"
 
 	"github.com/gorundebug/order_service_api/pkg/generated/openapi/orderserviceapi/processorder"
@@ -198,16 +197,7 @@ func buildProcessOrderSourceResponse(state *types.OrderState) *processorder.Proc
 }
 
 // MakeProcessOrderSource implements the handler for the ProcessOrderSource HTTP source endpoint.
-func MakeProcessOrderSource(_ context.Context, _ environment.ServiceEnvironment, cfg *runtimecfg.HttpEndpointConfig) (*ProcessOrderSource, error) {
+func MakeProcessOrderSource(_ context.Context, _ environment.ServiceEnvironment) (*ProcessOrderSource, error) {
 	const defaultTimeout = 5 * time.Second
-	timeout := defaultTimeout
-	if v := cfg.GetProperty("timeout"); v != nil {
-		switch ms := v.(type) {
-		case int:
-			timeout = time.Duration(ms) * time.Millisecond
-		case float64:
-			timeout = time.Duration(ms) * time.Millisecond
-		}
-	}
-	return &ProcessOrderSource{timeout: timeout}, nil
+	return &ProcessOrderSource{timeout: defaultTimeout}, nil
 }

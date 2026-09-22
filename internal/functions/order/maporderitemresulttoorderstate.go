@@ -8,7 +8,7 @@ import (
 	"github.com/gorundebug/orderservice/internal/types"
 
 	"github.com/gorundebug/servicelib/runtime"
-	runtimecfg "github.com/gorundebug/servicelib/runtime/config"
+
 	"github.com/gorundebug/servicelib/runtime/environment"
 	"github.com/gorundebug/servicelib/transformation"
 )
@@ -34,6 +34,6 @@ func (f *MapOrderItemResultToOrderState) Map(ctx context.Context, _ runtime.Stre
 // MakeMapOrderItemResultToOrderState is instantiated once at application startup via its maker function.
 // Fields of this struct are not protected by any synchronization — do not use
 // shared mutable state here without external synchronization.
-func MakeMapOrderItemResultToOrderState(ctx context.Context, env environment.ServiceEnvironment, cfg *runtimecfg.MapStreamConfig) (*MapOrderItemResultToOrderState, error) {
+func MakeMapOrderItemResultToOrderState(ctx context.Context, env environment.ServiceEnvironment) (*MapOrderItemResultToOrderState, error) {
 	return &MapOrderItemResultToOrderState{}, nil
 }

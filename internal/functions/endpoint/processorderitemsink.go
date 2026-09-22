@@ -5,7 +5,7 @@ import (
 
 	datasinkgrpc "github.com/gorundebug/servicelib/datasink/grpc"
 	"github.com/gorundebug/servicelib/runtime"
-	runtimecfg "github.com/gorundebug/servicelib/runtime/config"
+
 	"github.com/gorundebug/servicelib/runtime/environment"
 
 	"github.com/gorundebug/inventory_service_api/pkg/generated/proto/inventoryserviceapi/processorderitem"
@@ -93,6 +93,6 @@ func (ep *ProcessOrderItemSink) EndRequest(ctx context.Context, sc datasinkgrpc.
 }
 
 // MakeProcessOrderItemSink implements the handler for the ProcessOrderItem gRPC sink endpoint.
-func MakeProcessOrderItemSink(ctx context.Context, env environment.ServiceEnvironment, cfg *runtimecfg.GrpcEndpointConfig) (*ProcessOrderItemSink, error) {
+func MakeProcessOrderItemSink(ctx context.Context, env environment.ServiceEnvironment) (*ProcessOrderItemSink, error) {
 	return &ProcessOrderItemSink{}, nil
 }

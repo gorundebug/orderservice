@@ -7,7 +7,7 @@ import (
 	"github.com/gorundebug/model_go/pkg/types"
 	datasinkkafka "github.com/gorundebug/servicelib/datasink/kafka"
 	"github.com/gorundebug/servicelib/runtime"
-	runtimecfg "github.com/gorundebug/servicelib/runtime/config"
+
 	"github.com/gorundebug/servicelib/runtime/environment"
 )
 
@@ -71,6 +71,6 @@ func (ep *OrderProcessedEndpointSink) EndRequest(_ context.Context, _ runtime.St
 // Instantiated once at application startup via its maker function.
 // Fields of this struct are not protected by any synchronization — do not use
 // shared mutable state here without external synchronization.
-func MakeOrderProcessedEndpointSink(ctx context.Context, env environment.ServiceEnvironment, cfg *runtimecfg.KafkaEndpointConfig) (*OrderProcessedEndpointSink, error) {
+func MakeOrderProcessedEndpointSink(ctx context.Context, env environment.ServiceEnvironment) (*OrderProcessedEndpointSink, error) {
 	return &OrderProcessedEndpointSink{}, nil
 }

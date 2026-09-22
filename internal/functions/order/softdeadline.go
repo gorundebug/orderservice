@@ -39,6 +39,6 @@ func (f *SoftDeadline) DelayError(_ context.Context, _ runtime.Stream, _ *types.
 // MakeSoftDeadline is instantiated once at application startup via its maker function.
 // Fields of this struct are not protected by any synchronization — do not use
 // shared mutable state here without external synchronization.
-func MakeSoftDeadline(ctx context.Context, env environment.ServiceEnvironment, cfg *runtimecfg.DelayStreamConfig) (*SoftDeadline, error) {
+func MakeSoftDeadline(ctx context.Context, env environment.ServiceEnvironment) (*SoftDeadline, error) {
 	return &SoftDeadline{}, nil
 }
