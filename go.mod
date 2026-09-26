@@ -1,6 +1,6 @@
 module github.com/gorundebug/orderservice
 
-go 1.25.4
+go 1.26.0
 
 require (
 	github.com/google/uuid v1.6.0
@@ -9,7 +9,7 @@ require (
 	github.com/gorundebug/order_service_api v0.2.144
 	github.com/gorundebug/servicelib v0.2.144
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/sync v0.20.0
+	golang.org/x/sync v0.23.0
 	google.golang.org/grpc v1.81.1
 )
 
