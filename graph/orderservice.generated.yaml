@@ -263,7 +263,7 @@ services:
         startupHandler: health/startup
         statusHandler: status
 settings:
-    moduleVersion: v0.2.150
+    moduleVersion: v0.2.151
     name: Example
     repoPath: github.com/gorundebug/goexample
 types:
