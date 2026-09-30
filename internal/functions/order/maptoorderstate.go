@@ -3,12 +3,11 @@ package order
 import (
 	"context"
 
-	"github.com/gorundebug/orderservice/internal/types"
-
 	"github.com/gorundebug/servicelib/runtime"
-
 	"github.com/gorundebug/servicelib/runtime/environment"
 	"github.com/gorundebug/servicelib/transformation"
+
+	"github.com/gorundebug/orderservice/internal/types"
 )
 
 var _ transformation.MapFunction[*types.Order, *types.OrderState] = (*MapToOrderState)(nil)

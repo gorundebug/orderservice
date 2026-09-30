@@ -3,13 +3,12 @@ package order
 import (
 	"context"
 
-	"github.com/gorundebug/model_go/pkg/types"
-	types2 "github.com/gorundebug/orderservice/internal/types"
-
 	"github.com/gorundebug/servicelib/runtime"
-
 	"github.com/gorundebug/servicelib/runtime/environment"
 	"github.com/gorundebug/servicelib/transformation"
+
+	"github.com/gorundebug/model_go/pkg/types"
+	types2 "github.com/gorundebug/orderservice/internal/types"
 )
 
 var _ transformation.FlatMapFunction[*types2.Order, *types.OrderItem] = (*ProcessOrderItems)(nil)

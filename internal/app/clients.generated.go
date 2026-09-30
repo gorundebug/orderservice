@@ -4,14 +4,16 @@ package app
 import (
 	"context"
 	"fmt"
+	"sync"
+
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+
 	"github.com/gorundebug/servicelib/runtime"
 	log "github.com/gorundebug/servicelib/runtime/environment/log"
-	"sync"
 
 	inventoryserviceapi "github.com/gorundebug/inventory_service_api/pkg/generated/proto/inventoryserviceapi"
 	config "github.com/gorundebug/orderservice/internal/config"
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
 )
 
 type serviceClients struct {

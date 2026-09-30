@@ -4,10 +4,12 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
+	"github.com/gorundebug/servicelib/runtime"
+
 	"github.com/gorundebug/model_go/pkg/types"
 	types2 "github.com/gorundebug/orderservice/internal/types"
-	"github.com/gorundebug/servicelib/runtime"
-	"github.com/stretchr/testify/assert"
 )
 
 // Every item is emitted independently for inventory processing with the parent order ID assigned.

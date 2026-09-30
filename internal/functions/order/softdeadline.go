@@ -2,15 +2,14 @@ package order
 
 import (
 	"context"
-
-	"github.com/gorundebug/orderservice/internal/types"
-
 	"time"
 
 	"github.com/gorundebug/servicelib/runtime"
 	runtimecfg "github.com/gorundebug/servicelib/runtime/config"
 	"github.com/gorundebug/servicelib/runtime/environment"
 	"github.com/gorundebug/servicelib/transformation"
+
+	"github.com/gorundebug/orderservice/internal/types"
 )
 
 var _ transformation.DelayFunction[*types.Order] = (*SoftDeadline)(nil)

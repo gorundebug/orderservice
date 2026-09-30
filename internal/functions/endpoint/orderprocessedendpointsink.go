@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/gorundebug/model_go/pkg/types"
 	datasinkkafka "github.com/gorundebug/servicelib/datasink/kafka"
 	"github.com/gorundebug/servicelib/runtime"
-
 	"github.com/gorundebug/servicelib/runtime/environment"
+
+	"github.com/gorundebug/model_go/pkg/types"
 )
 
 // orderProcessedEndpointSinkHandler is a type alias for the EndpointHandler generic instantiation used throughout this file.

@@ -5,10 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorundebug/orderservice/internal/types"
+	"github.com/stretchr/testify/assert"
+
 	runtimecfg "github.com/gorundebug/servicelib/runtime/config"
 	"github.com/gorundebug/servicelib/runtime/environment"
-	"github.com/stretchr/testify/assert"
+
+	"github.com/gorundebug/orderservice/internal/types"
 )
 
 // Returns the soft-deadline duration to cut off from the request context deadline. cfg.Duration (milliseconds) is the

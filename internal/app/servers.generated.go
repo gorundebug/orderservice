@@ -5,12 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/gorundebug/servicelib/runtime"
-	log "github.com/gorundebug/servicelib/runtime/environment/log"
-	"github.com/gorundebug/servicelib/runtime/environment/tracing"
 	"net"
 	"net/http"
 	"sync"
+
+	"github.com/gorundebug/servicelib/runtime"
+	log "github.com/gorundebug/servicelib/runtime/environment/log"
+	"github.com/gorundebug/servicelib/runtime/environment/tracing"
 
 	orderserviceapi "github.com/gorundebug/order_service_api/pkg/generated/openapi/orderserviceapi"
 )

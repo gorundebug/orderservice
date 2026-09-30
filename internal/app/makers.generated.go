@@ -4,12 +4,9 @@ package app
 import (
 	"context"
 	"fmt"
-	inventoryserviceapi "github.com/gorundebug/inventory_service_api/pkg/generated/proto/inventoryserviceapi"
-	endpoint "github.com/gorundebug/orderservice/internal/functions/endpoint"
-	order "github.com/gorundebug/orderservice/internal/functions/order"
-	"github.com/gorundebug/servicelib/runtime"
-	runtimecfg "github.com/gorundebug/servicelib/runtime/config"
-	"github.com/gorundebug/servicelib/runtime/environment"
+	"net/http"
+	"strings"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/attributes"
 	_ "google.golang.org/grpc/balancer/roundrobin"
@@ -17,8 +14,14 @@ import (
 	"google.golang.org/grpc/resolver"
 	"google.golang.org/grpc/resolver/manual"
 	"google.golang.org/grpc/stats"
-	"net/http"
-	"strings"
+
+	"github.com/gorundebug/servicelib/runtime"
+	runtimecfg "github.com/gorundebug/servicelib/runtime/config"
+	"github.com/gorundebug/servicelib/runtime/environment"
+
+	inventoryserviceapi "github.com/gorundebug/inventory_service_api/pkg/generated/proto/inventoryserviceapi"
+	endpoint "github.com/gorundebug/orderservice/internal/functions/endpoint"
+	order "github.com/gorundebug/orderservice/internal/functions/order"
 )
 
 type serviceMakers struct {

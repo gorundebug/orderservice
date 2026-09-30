@@ -4,13 +4,14 @@ package app
 import (
 	"context"
 	"fmt"
-	"github.com/gorundebug/servicelib/runtime"
-	"github.com/gorundebug/servicelib/runtime/environment"
-	log "github.com/gorundebug/servicelib/runtime/environment/log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/gorundebug/servicelib/runtime"
+	"github.com/gorundebug/servicelib/runtime/environment"
+	log "github.com/gorundebug/servicelib/runtime/environment/log"
 
 	config "github.com/gorundebug/orderservice/internal/config"
 )

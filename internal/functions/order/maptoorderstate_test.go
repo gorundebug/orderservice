@@ -4,9 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/gorundebug/orderservice/internal/types"
-	"github.com/gorundebug/servicelib/runtime"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/gorundebug/servicelib/runtime"
+
+	"github.com/gorundebug/orderservice/internal/types"
 )
 
 // Convert an Order that reached the soft deadline (timeout branch) into a partial OrderState{Status: TIMED_OUT}. Copy

@@ -4,10 +4,12 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
+	"github.com/gorundebug/servicelib/runtime"
+
 	types2 "github.com/gorundebug/model_go/pkg/types"
 	"github.com/gorundebug/orderservice/internal/types"
-	"github.com/gorundebug/servicelib/runtime"
-	"github.com/stretchr/testify/assert"
 )
 
 // A single inventory result becomes an order result with the same order ID. Reserved items are CONFIRMED;

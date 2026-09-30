@@ -3,8 +3,10 @@ package app
 
 import (
 	"context"
-	"github.com/gorundebug/servicelib/runtime"
+
 	"golang.org/x/sync/errgroup"
+
+	"github.com/gorundebug/servicelib/runtime"
 
 	endpoint "github.com/gorundebug/orderservice/internal/functions/endpoint"
 	order "github.com/gorundebug/orderservice/internal/functions/order"

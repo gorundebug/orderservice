@@ -4,13 +4,12 @@ import (
 	"context"
 	"time"
 
-	types2 "github.com/gorundebug/model_go/pkg/types"
-	"github.com/gorundebug/orderservice/internal/types"
-
 	"github.com/gorundebug/servicelib/runtime"
-
 	"github.com/gorundebug/servicelib/runtime/environment"
 	"github.com/gorundebug/servicelib/transformation"
+
+	types2 "github.com/gorundebug/model_go/pkg/types"
+	"github.com/gorundebug/orderservice/internal/types"
 )
 
 var _ transformation.MapFunction[*types2.OrderItemResult, *types.OrderState] = (*MapOrderItemResultToOrderState)(nil)

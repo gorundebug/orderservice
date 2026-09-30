@@ -2,8 +2,9 @@
 package app
 
 import (
-	"github.com/gorundebug/order_service_api/pkg/generated/openapi/orderserviceapi"
 	"net/http"
+
+	"github.com/gorundebug/order_service_api/pkg/generated/openapi/orderserviceapi"
 )
 
 var _ orderserviceapi.ServerInterface = (*HttpService)(nil)

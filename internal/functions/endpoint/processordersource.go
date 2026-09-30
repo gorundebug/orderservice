@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	modeltypes "github.com/gorundebug/model_go/pkg/types"
+
 	datasourcehttp "github.com/gorundebug/servicelib/datasource/http"
 	"github.com/gorundebug/servicelib/runtime"
 	"github.com/gorundebug/servicelib/runtime/environment"
 
+	modeltypes "github.com/gorundebug/model_go/pkg/types"
 	"github.com/gorundebug/order_service_api/pkg/generated/openapi/orderserviceapi/processorder"
 	"github.com/gorundebug/orderservice/internal/types"
 )
