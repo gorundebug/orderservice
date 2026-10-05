@@ -15,13 +15,16 @@ dataConnectors:
                 methodName: ProcessOrderItem
                 name: Process Order Item
                 publicFunction: false
-        goImplementation: google/grpc
+        implementations:
+            cppCoro: google/grpc
+            cppUserver: userver/grpc
+            golang: google/grpc
+            python: google/grpc
+            rust: rust/tonic
+            typescript: grpc/grpc-js
         module: inventory_service_api
         name: Inventory Service API
-        pythonImplementation: google/grpc
-        rustImplementation: rust/tonic
         type: gRPC
-        typeScriptImplementation: grpc/grpc-js
     orderEvents:
         brokers: redpanda:9092
         dialTimeout: 5000
@@ -42,15 +45,18 @@ dataConnectors:
                 publicFunction: false
                 replicationFactor: 1
                 topic: order-processed
-        goImplementation: IBM/Sarama
+        implementations:
+            cppCoro: librdkafka
+            cppUserver: userver/kafka
+            golang: IBM/Sarama
+            python: aiokafka
+            rust: rust/rdkafka
+            typescript: confluent/kafka-javascript
         name: Order Events
         password: ""
-        pythonImplementation: aiokafka
-        rustImplementation: rust/rdkafka
         saslMechanism: SCRAM-SHA-512
         securityProtocol: PLAINTEXT
         type: Kafka
-        typeScriptImplementation: confluent/kafka-javascript
         username: ""
         version: 2.8.0
     orderServiceApi:
@@ -68,13 +74,16 @@ dataConnectors:
                 name: Process Order
                 path: /v1/processorder
                 publicFunction: false
-        goImplementation: net/http
+        implementations:
+            cppCoro: boost/beast-http
+            cppUserver: userver/http
+            golang: net/http
+            python: aiohttp
+            rust: rust/axum
+            typescript: node/http
         module: order_service_api
         name: Order Service API
-        pythonImplementation: aiohttp
-        rustImplementation: rust/axum
         type: HTTP
-        typeScriptImplementation: node/http
         useDedicatedListener: false
 pools:
     defaultPool:
@@ -263,7 +272,7 @@ services:
         startupHandler: health/startup
         statusHandler: status
 settings:
-    moduleVersion: v0.2.153
+    moduleVersion: v0.2.154
     name: Example
     repoPath: github.com/gorundebug/goexample
 types:
