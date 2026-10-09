@@ -18,7 +18,14 @@ ARG GRAFONNET_REVISION=41e6bfcbe4ef1054298ffff8664f1354c897dd2d
 ARG DEPENDENCY_GITHUB_RAW_URL=https://github.com
 
 # Install the pinned Jsonnet CLI.
-RUN curl -fsSL "${DEPENDENCY_GITHUB_RAW_URL}/google/go-jsonnet/releases/download/v${GO_JSONNET_VERSION}/go-jsonnet_${GO_JSONNET_VERSION}_Linux_x86_64.tar.gz" \
+RUN set -e; \
+    ARCH="$(uname -m)"; \
+    case "${ARCH}" in \
+        x86_64) JSONNET_ARCH=Linux_x86_64 ;; \
+        aarch64|arm64) JSONNET_ARCH=Linux_arm64 ;; \
+        *) echo "Unsupported architecture: ${ARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "${DEPENDENCY_GITHUB_RAW_URL}/google/go-jsonnet/releases/download/v${GO_JSONNET_VERSION}/go-jsonnet_${GO_JSONNET_VERSION}_${JSONNET_ARCH}.tar.gz" \
     | tar xz -C /usr/local/bin jsonnet
 
 # Download the pinned Grafonnet source into vendor.
