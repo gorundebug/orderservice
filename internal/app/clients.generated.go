@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sync"
 
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 
 	"github.com/gorundebug/servicelib/runtime"
@@ -29,7 +28,7 @@ func (clients *serviceClients) initClients(ctx context.Context, cfg *config.Conf
 	return nil
 }
 func (clients *serviceClients) initGRPC(ctx context.Context, cfg *config.Config, env runtime.RuntimeEnvironment, makers *serviceMakers) error {
-	eg, egCtx := errgroup.WithContext(ctx)
+	eg, egCtx := newServiceMakerGroup(ctx)
 	eg.Go(func() error {
 		conn, client, err := makers.inventoryServiceApiGrpcClientMaker(egCtx, &cfg.DataConnectors.InventoryServiceApi, env)
 		if err != nil {

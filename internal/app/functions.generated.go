@@ -27,9 +27,33 @@ type serviceFunctions struct {
 
 type makerTaskGroup interface{ Go(func() error) }
 
+// A successful join does not end the lifetime of resources made by this group.
+// The caller owns that lifetime; a construction failure cancels only this group.
+type serviceMakerGroup struct {
+	group  errgroup.Group
+	cancel context.CancelCauseFunc
+}
+
+func newServiceMakerGroup(ctx context.Context) (*serviceMakerGroup, context.Context) {
+	makerCtx, cancel := context.WithCancelCause(ctx)
+	return &serviceMakerGroup{cancel: cancel}, makerCtx
+}
+
+func (g *serviceMakerGroup) Go(task func() error) {
+	g.group.Go(func() error {
+		err := task()
+		if err != nil {
+			g.cancel(err)
+		}
+		return err
+	})
+}
+
+func (g *serviceMakerGroup) Wait() error { return g.group.Wait() }
+
 func (functions *serviceFunctions) initFunctions(ctx context.Context, env runtime.RuntimeEnvironment, makers *serviceMakers) error {
 
-	eg, egCtx := errgroup.WithContext(ctx)
+	eg, egCtx := newServiceMakerGroup(ctx)
 	functions.scheduleFunctions(eg, egCtx, env, makers)
 	if err := eg.Wait(); err != nil {
 		return err

@@ -105,6 +105,12 @@ func Start(ctx context.Context,
 	version string,
 	commit string,
 ) error {
+	if ctx == nil {
+		return fmt.Errorf("service context must not be nil")
+	}
+	// Own all maker scopes until shutdown and Release have completed.
+	ctx, cancelServiceContext := context.WithCancel(ctx)
+	defer cancelServiceContext()
 	if dependency == nil {
 		dependency = &serviceDependencies{}
 	}
@@ -122,7 +128,11 @@ func Start(ctx context.Context,
 	if err != nil {
 		return fmt.Errorf("service start failed: %w", err)
 	}
-	defer service.Release()
+	defer func() {
+		releaseCtx, cancel := context.WithTimeout(ctx, time.Duration(service.ServiceConfig().ShutdownTimeout)*time.Millisecond)
+		defer cancel()
+		service.Release(releaseCtx)
+	}()
 
 	service.Log().Info(ctx, "starting service", log.Str("service", service.ServiceConfig().Name), log.Str("version", version), log.Str("commit", commit))
 
@@ -131,13 +141,7 @@ func Start(ctx context.Context,
 		stop = make(chan os.Signal, 2)
 		signal.Notify(stop, syscall.SIGINT)
 		signal.Notify(stop, syscall.SIGTERM)
-	}
-
-	if ctx == nil {
-		localCtx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		ctx = localCtx
+		defer signal.Stop(stop)
 	}
 
 	if err = service.StartService(ctx); err != nil {
@@ -150,13 +154,13 @@ func Start(ctx context.Context,
 			close(stop)
 		})
 	}
-	if stop != nil {
-		<-stop
-	} else if done != nil {
-		<-done
+	select {
+	case <-ctx.Done():
+	case <-stop:
+	case <-done:
 	}
 	service.Log().Info(ctx, "service stop signal received", log.Str("service", service.ServiceConfig().Name))
-	service.StopService(context.WithoutCancel(ctx))
+	service.StopService(ctx)
 	service.Log().Info(ctx, "service stopped", log.Str("service", service.ServiceConfig().Name))
 	return nil
 }
