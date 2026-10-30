@@ -4,6 +4,7 @@ package app
 import (
 	"context"
 
+	datasinkkafka "github.com/gorundebug/servicelib/datasink/kafka"
 	"github.com/gorundebug/servicelib/runtime"
 
 	processorderitem "github.com/gorundebug/inventory_service_api/pkg/generated/proto/inventoryserviceapi/processorderitem"
@@ -37,7 +38,7 @@ func (endpoints *serviceEndpoints) initEndpoints(s *Service) error {
 	}); err != nil {
 		return err
 	}
-	if endpoints.publishOrderProcessedOrderProcessed, err = endpoint.MakeEndpointConsumerOrderProcessedEndpointSink(s.streams.publishOrderProcessed, s.functions.endpointOrderProcessedEndpointSink); err != nil {
+	if endpoints.publishOrderProcessedOrderProcessed, err = datasinkkafka.MakeSaramaKafkaEndpointConsumer[endpoint.OrderProcessedEndpointSinkHandlerState, *types2.OrderProcessed, error](s.streams.publishOrderProcessed, s.functions.endpointOrderProcessedEndpointSink); err != nil {
 		return err
 	}
 	return err
