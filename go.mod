@@ -9,7 +9,7 @@ require (
 	github.com/gorundebug/order_service_api v0.2.171
 	github.com/gorundebug/servicelib v0.2.171
 	github.com/stretchr/testify v1.12.1
-	golang.org/x/sync v0.23.0
+	golang.org/x/sync v0.24.0
 	google.golang.org/grpc v1.81.1
 )
 
