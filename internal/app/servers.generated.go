@@ -49,8 +49,6 @@ func (servers *serviceServers) start(ctx context.Context, s *Service) error {
 	} else {
 		return fmt.Errorf("http error handler is nil for endpoint %q", "Process Order")
 	}
-	httpSvc := &HttpService{service: s}
-	orderserviceapi.HandlerFromMux(httpSvc, servers.httpMux)
 	s.RegisterHTTPHandler("/swagger/orderserviceapi/", orderserviceapi.SwaggerHandler("/swagger/orderserviceapi/"))
 
 	if servers.httpMux != nil {
