@@ -9,11 +9,6 @@ import (
 	orderservice "github.com/gorundebug/orderservice/internal/app"
 )
 
-var (
-	build_version = "v0.0.0" //nolint:gochecknoglobals
-	build_commit  = ""       //nolint:gochecknoglobals
-)
-
 func main() {
 	valuesPathArg := flag.String("values", "./config/overrides.yaml", "service config values path")
 	configPathArg := flag.String("config", "./config/config.yaml", "service config path")
@@ -25,8 +20,8 @@ func main() {
 		nil,
 		configPathArg,
 		valuesPathArg,
-		build_version,
-		build_commit,
+		os.Getenv("APP_VERSION"),
+		os.Getenv("APP_COMMIT"),
 	); err != nil {
 		log.Printf("start service error: %s", err.Error())
 		os.Exit(1)

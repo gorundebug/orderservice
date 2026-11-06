@@ -7,9 +7,6 @@ SERVICE_NAME=orderservice
 SERVICE_NAME_UPPER=ORDER_SERVICE
 MODULE_DIR := $(abspath .)
 PROJECT_DIR ?= $(MODULE_DIR)
-GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-BUILD_VERSION := $(shell git describe --tags --always 2>/dev/null || echo "v0.0.0")
-LDFLAGS := -X main.build_version=$(BUILD_VERSION) -X main.build_commit=$(GIT_COMMIT)
 BIN_DIR := $(PROJECT_DIR)/bin
 COMPOSE := docker compose -f $(if $(wildcard docker-compose.yml),docker-compose.yml,docker-compose.generated.yml)
 COMPOSE_DEV := $(COMPOSE) -f docker-compose.dev.generated.yml
@@ -23,7 +20,7 @@ ACT_VERSION := v0.2.144
 ACT := $(TOOLS_DIR)/act
 OS := $(shell uname -s)
 ARCH := $(shell uname -m)
-GOSERVICELIB_SOURCE_CONTEXT ?= https://github.com/gorundebug/servicelib.git\#v0.2.172
+GOSERVICELIB_SOURCE_CONTEXT ?= https://github.com/gorundebug/servicelib.git\#v0.2.173
 RUNTIME_STRIP ?= ON
 # Keep SHELL relative: GNU Make parses an absolute shell path containing spaces as words.
 DEPENDENCY_DOWNLOAD_ENV := $(if $(wildcard dependency-download-env.generated.sh),./dependency-download-env.generated.sh,$(if $(wildcard ../dependency-download-env.generated.sh),../dependency-download-env.generated.sh,/bin/sh))
@@ -51,13 +48,13 @@ ifneq ($(strip $(DEPENDENCY_PROXY_DIR)),)
 # Keep an explicit environment/command-line source context for local framework
 # development. Only replace the generated release default with the proxy URL.
 ifeq ($(origin GOSERVICELIB_SOURCE_CONTEXT),file)
-GOSERVICELIB_SOURCE_CONTEXT := $(DEPENDENCY_GIT_MIRROR_DOCKER_BASE)/github.com/gorundebug/servicelib.git\#v0.2.172
+GOSERVICELIB_SOURCE_CONTEXT := $(DEPENDENCY_GIT_MIRROR_DOCKER_BASE)/github.com/gorundebug/servicelib.git\#v0.2.173
 endif
 export GOSERVICELIB_SOURCE_CONTEXT
 ifneq ($(strip $(USE_LOCAL_MODULES)),1)
-export INVENTORY_SERVICE_API_SOURCE_CONTEXT := $(DEPENDENCY_GIT_MIRROR_DOCKER_BASE)/github.com/gorundebug/inventory_service_api.git\#v0.2.172
-export MODEL_GO_SOURCE_CONTEXT := $(DEPENDENCY_GIT_MIRROR_DOCKER_BASE)/github.com/gorundebug/model_go.git\#v0.2.172
-export ORDER_SERVICE_API_SOURCE_CONTEXT := $(DEPENDENCY_GIT_MIRROR_DOCKER_BASE)/github.com/gorundebug/order_service_api.git\#v0.2.172
+export INVENTORY_SERVICE_API_SOURCE_CONTEXT := $(DEPENDENCY_GIT_MIRROR_DOCKER_BASE)/github.com/gorundebug/inventory_service_api.git\#v0.2.173
+export MODEL_GO_SOURCE_CONTEXT := $(DEPENDENCY_GIT_MIRROR_DOCKER_BASE)/github.com/gorundebug/model_go.git\#v0.2.173
+export ORDER_SERVICE_API_SOURCE_CONTEXT := $(DEPENDENCY_GIT_MIRROR_DOCKER_BASE)/github.com/gorundebug/order_service_api.git\#v0.2.173
 endif
 endif
 
@@ -72,12 +69,12 @@ build: gen-proto service_build ## [host] Generate owned bindings and build the s
 service_build:
 	@echo "Building $(SERVICE_NAME)..."
 	mkdir -p "$(BIN_DIR)"
-	go build -ldflags="$(LDFLAGS)" -o "$(BIN_DIR)/$(SERVICE_NAME)" "./cmd/service/main.go"
+	go build -o "$(BIN_DIR)/$(SERVICE_NAME)" "./cmd/service/main.go"
 
 service_build_linux:
 	@echo "Building $(SERVICE_NAME) for linux/$(shell go env GOARCH)..."
 	mkdir -p "$(BIN_DIR)"
-	CGO_ENABLED=0 GOOS=linux go build -ldflags="$(LDFLAGS)" -o "$(BIN_DIR)/$(SERVICE_NAME)" "./cmd/service/main.go"
+	CGO_ENABLED=0 GOOS=linux go build -o "$(BIN_DIR)/$(SERVICE_NAME)" "./cmd/service/main.go"
 
 clean: ## [host] Remove Go build artifacts
 	@echo "Cleaning $(SERVICE_NAME)..."
