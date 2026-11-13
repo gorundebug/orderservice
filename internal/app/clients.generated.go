@@ -49,6 +49,9 @@ func (clients *serviceClients) close(timeoutCtx context.Context, s *Service) {
 	cleanupWg.Add(1)
 	go func() {
 		defer cleanupWg.Done()
+		if clients.inventoryServiceApiGrpcClientConn == nil {
+			return
+		}
 		if err := clients.inventoryServiceApiGrpcClientConn.Close(); err != nil {
 			s.Log().Warn(timeoutCtx, "gRPC client close error", log.Str("server", "Inventory Service API"), log.Err(err))
 		}
