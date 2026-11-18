@@ -10,7 +10,10 @@ dataConnectors:
     username: ""
 endpoints:
   orderProcessed:
+    createTopic: true
     enabled: true
+    partitions: 1
+    topic: order-processed
 pools:
   defaultPool:
     executorsCount: 2

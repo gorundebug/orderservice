@@ -10,7 +10,10 @@ dataConnectors:
     username: $orderEventsUsername
 endpoints:
   orderProcessed:
+    createTopic: $orderProcessedCreateTopic
     enabled: $orderProcessedEnabled
+    partitions: $orderProcessedPartitions
+    topic: $orderProcessedTopic
 pools:
   defaultPool:
     executorsCount: $defaultPoolExecutorsCount

@@ -208,7 +208,16 @@ func (c *Config) ApplyEnvironment() error {
 	if err := c.applyOrderEventsUsername(); err != nil {
 		return err
 	}
+	if err := c.applyOrderProcessedCreateTopic(); err != nil {
+		return err
+	}
 	if err := c.applyOrderProcessedEnabled(); err != nil {
+		return err
+	}
+	if err := c.applyOrderProcessedPartitions(); err != nil {
+		return err
+	}
+	if err := c.applyOrderProcessedTopic(); err != nil {
 		return err
 	}
 	if err := c.applyOrderServiceDefaultGrpcTimeout(); err != nil {
@@ -331,6 +340,21 @@ func (c *Config) applyOrderEventsUsername() error {
 	return nil
 }
 
+func (c *Config) applyOrderProcessedCreateTopic() error {
+	value, exists := os.LookupEnv("ORDER_PROCESSED_CREATE_TOPIC")
+	if !exists {
+		return nil
+	}
+
+	boolVal, err := strconv.ParseBool(value)
+	if err != nil {
+		return fmt.Errorf("failed to convert ORDER_PROCESSED_CREATE_TOPIC to bool: %w", err)
+	}
+	c.Endpoints.OrderProcessed.CreateTopic = boolVal
+
+	return nil
+}
+
 func (c *Config) applyOrderProcessedEnabled() error {
 	value, exists := os.LookupEnv("ORDER_PROCESSED_ENABLED")
 	if !exists {
@@ -342,6 +366,32 @@ func (c *Config) applyOrderProcessedEnabled() error {
 		return fmt.Errorf("failed to convert ORDER_PROCESSED_ENABLED to bool: %w", err)
 	}
 	c.Endpoints.OrderProcessed.Enabled = boolVal
+
+	return nil
+}
+
+func (c *Config) applyOrderProcessedPartitions() error {
+	value, exists := os.LookupEnv("ORDER_PROCESSED_PARTITIONS")
+	if !exists {
+		return nil
+	}
+
+	intVal, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("failed to convert ORDER_PROCESSED_PARTITIONS to int: %w", err)
+	}
+	c.Endpoints.OrderProcessed.Partitions = intVal
+
+	return nil
+}
+
+func (c *Config) applyOrderProcessedTopic() error {
+	value, exists := os.LookupEnv("ORDER_PROCESSED_TOPIC")
+	if !exists {
+		return nil
+	}
+
+	c.Endpoints.OrderProcessed.Topic = value
 
 	return nil
 }
