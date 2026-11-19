@@ -2,6 +2,8 @@
 package app
 
 import (
+	"context"
+
 	"github.com/gorundebug/servicelib/runtime"
 
 	config "github.com/gorundebug/orderservice/internal/config"
@@ -9,7 +11,7 @@ import (
 
 // Connector resources are owned and registered by the runtime environment.
 // Do not keep a duplicate registry in the generated service.
-func initConnectors(cfg *config.Config, env runtime.RuntimeEnvironment) error {
+func initConnectors(ctx context.Context, cfg *config.Config, env runtime.RuntimeEnvironment, makers *serviceMakers) error {
 
 	return nil
 }

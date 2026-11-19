@@ -46,5 +46,6 @@ func (endpoints *serviceEndpoints) initEndpoints(s *Service) error {
 	if endpoints.publishOrderProcessedOrderProcessed, err = datasinkkafka.MakeSaramaKafkaEndpointConsumer[endpoint.OrderProcessedEndpointSinkHandlerState, *types2.OrderProcessed, error](s.streams.publishOrderProcessed, s.functions.endpointOrderProcessedEndpointSink); err != nil {
 		return err
 	}
+
 	return err
 }

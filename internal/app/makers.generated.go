@@ -42,6 +42,7 @@ type serviceMakers struct {
 }
 
 func (makers *serviceMakers) initMakers(ctx context.Context) error {
+
 	makers.httpMuxMaker = func(_ context.Context, _ runtime.RuntimeEnvironment) (*http.ServeMux, error) {
 		return http.NewServeMux(), nil
 	}

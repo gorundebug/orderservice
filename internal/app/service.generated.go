@@ -36,7 +36,7 @@ func (s *Service) buildRuntime(ctx context.Context) error {
 	if err := s.customMakersInit(ctx); err != nil {
 		return fmt.Errorf("custom init makers failed: %w", err)
 	}
-	if err := initConnectors(cfg, s); err != nil {
+	if err := initConnectors(ctx, cfg, s, &s.makers); err != nil {
 		return err
 	}
 	if s.makers.httpMuxMaker != nil {
